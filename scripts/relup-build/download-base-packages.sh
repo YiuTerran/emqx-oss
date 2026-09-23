@@ -9,16 +9,10 @@ set -euo pipefail
 cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.."
 ROOT_DIR="$(pwd)"
 
-PROFILE="${1:-emqx-enterprise}"
+PROFILE="${1:-emqx}"
 export PROFILE
 
 case $PROFILE in
-    "emqx-enterprise")
-        #S3DIR='emqx-ee'
-        #EDITION='enterprise'
-        echo "No relup for now"
-        exit 0
-        ;;
     "emqx")
         echo "No relup for opensource edition"
         exit 0

@@ -2,8 +2,14 @@ English | [简体中文](./README-CN.md) | [Русский](./README-RU.md)
 
 # EMQX
 
+This fork is based on the Apache 2.0 EMQX 5.8.9 Community Edition. It includes
+session registry stale-record cleanup and the Apache-licensed esockd file-limit
+fix. BSL-licensed application directories and Enterprise build profiles have
+been removed. LDAP authentication and MQTT over QUIC are unavailable in this fork. Build the fork
+from this source tree with the `emqx` profile; upstream `latest` images do not
+contain these fork changes.
+
 [![GitHub Release](https://img.shields.io/github/release/emqx/emqx?color=brightgreen&label=Release)](https://github.com/emqx/emqx/releases)
-[![Build Status](https://github.com/emqx/emqx/actions/workflows/_push-entrypoint.yaml/badge.svg)](https://github.com/emqx/emqx/actions/workflows/_push-entrypoint.yaml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/emqx/emqx?label=Docker%20Pulls)](https://hub.docker.com/r/emqx/emqx)
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/emqx/emqx?label=OpenSSF%20Scorecard&style=flat)](https://securityscorecards.dev/viewer/?uri=github.com/emqx/emqx)
 [![Slack](https://img.shields.io/badge/Slack-EMQ-39AE85?logo=slack)](https://slack-invite.emqx.io/)
@@ -14,7 +20,7 @@ English | [简体中文](./README-CN.md) | [Русский](./README-RU.md)
 
 EMQX is the world's most scalable open-source [MQTT broker](https://www.emqx.com/en/blog/the-ultimate-guide-to-mqtt-broker-comparison) with a high performance that connects 100M+ IoT devices in 1 cluster, while maintaining 1M message per second throughput and sub-millisecond latency.
 
-EMQX supports multiple open standard protocols like MQTT, HTTP, QUIC, and WebSocket. It’s 100% compliant with MQTT 5.0 and 3.x standard, and secures bi-directional communication with MQTT over TLS/SSL and various authentication mechanisms.
+EMQX supports multiple open standard protocols like MQTT, HTTP, and WebSocket. It’s 100% compliant with MQTT 5.0 and 3.x standard, and secures bi-directional communication with MQTT over TLS/SSL and various authentication mechanisms.
 
 With the built-in powerful SQL-based [rules engine](https://www.emqx.com/en/solutions/iot-rule-engine), EMQX can extract, filter, enrich and transform IoT data in real-time. In addition, it ensures high availability and horizontal scalability with a masterless distributed architecture, and provides ops-friendly user experience and great observability.
 
@@ -95,25 +101,10 @@ For more organised improvement proposals, you can send pull requests to [EIP](ht
 
 ## Build From Source
 
-The `master` branch tracks the latest version 5. For version 4.4 checkout the `main-v4.4` branch.
-
-* EMQX 4.4 requires OTP 24.
-* EMQX 5.0 ~ 5.3 can be built with OTP 24 or 25.
-* EMQX 5.4 and newer can be built with OTP 25 or 26.
+This fork targets EMQX 5.8.9. Use OTP 26 and build from this repository's root:
 
 ```bash
-git clone https://github.com/emqx/emqx.git
-cd emqx
-make
-_build/emqx/rel/emqx/bin/emqx console
-```
-
-For 4.2 or earlier versions, release has to be built from another repo.
-
-```bash
-git clone https://github.com/emqx/emqx-rel.git
-cd emqx-rel
-make
+make emqx-rel
 _build/emqx/rel/emqx/bin/emqx console
 ```
 

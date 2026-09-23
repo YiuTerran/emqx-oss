@@ -724,11 +724,7 @@ locate_package() {
   local package_path candidates vsn
   vsn="$1"
 
-  if [[ "${IS_ENTERPRISE}" == "yes" ]]; then
-    package_pattern="$RUNNER_ROOT_DIR/releases/emqx-enterprise-$vsn-*.tar.gz"
-  else
-    package_pattern="$RUNNER_ROOT_DIR/releases/emqx-$vsn-*.tar.gz"
-  fi
+  package_pattern="$RUNNER_ROOT_DIR/releases/emqx-$vsn-*.tar.gz"
 
   # shellcheck disable=SC2207,SC2086
   candidates=($(ls $package_pattern))

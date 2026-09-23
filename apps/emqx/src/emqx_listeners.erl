@@ -72,8 +72,7 @@
         current_conns/3,
         do_stop_listener/3,
         do_start_listener/4,
-        do_update_listener/4,
-        quic_listener_conf_rollback/3
+        do_update_listener/4
     ]}
 ).
 -endif.
@@ -86,7 +85,7 @@
 
 -define(ROOT_KEY, listeners).
 -define(CONF_KEY_PATH, [?ROOT_KEY, '?', '?']).
--define(TYPES_STRING, ["tcp", "ssl", "ws", "wss", "quic"]).
+-define(TYPES_STRING, ["tcp", "ssl", "ws", "wss"]).
 -define(MARK_DEL, ?TOMBSTONE_CONFIG_CHANGE_REQ).
 
 -spec id_example() -> atom().
@@ -180,13 +179,8 @@ is_running(Type, ListenerId, _Conf) when Type =:= ws; Type =:= wss ->
         _:_ ->
             false
     end;
-is_running(quic, ListenerId, _Conf) ->
-    case quicer:listener(ListenerId) of
-        {ok, Pid} when is_pid(Pid) ->
-            true;
-        _ ->
-            false
-    end.
+is_running(_, _, _) ->
+    false.
 
 current_conns(ID, ListenOn) ->
     {ok, #{type := Type, name := Name}} = parse_listener_id(ID),
@@ -196,9 +190,6 @@ current_conns(Type, Name, ListenOn) when Type == tcp; Type == ssl ->
     esockd:get_current_connections({listener_id(Type, Name), ListenOn});
 current_conns(Type, Name, _ListenOn) when Type =:= ws; Type =:= wss ->
     proplists:get_value(all_connections, ranch:info(listener_id(Type, Name)));
-current_conns(quic, Name, _ListenOn) ->
-    {ok, LPid} = quicer:listener(listener_id(quic, Name)),
-    quicer_listener:count_conns(LPid);
 current_conns(_, _, _) ->
     {error, not_support}.
 
@@ -374,8 +365,8 @@ do_stop_listener(Type, Id, #{bind := ListenOn}) when ?COWBOY_LISTENER(Type) ->
         Error ->
             Error
     end;
-do_stop_listener(quic, Id, _Conf) ->
-    quicer:terminate_listener(Id).
+do_stop_listener(_, _, _) ->
+    {error, not_supported}.
 
 wait_listener_stopped(ListenOn) ->
     wait_listener_stopped(ListenOn, 0).
@@ -445,35 +436,8 @@ do_start_listener(Type, Name, Id, Opts) when ?COWBOY_LISTENER(Type) ->
         ws -> cowboy:start_clear(Id, RanchOpts, WsOpts);
         wss -> cowboy:start_tls(Id, RanchOpts, WsOpts)
     end;
-%% Start MQTT/QUIC listener
-do_start_listener(quic, Name, Id, #{bind := Bind} = Opts) ->
-    ListenOn = quic_listen_on(Bind),
-    case [A || {quicer, _, _} = A <- application:which_applications()] of
-        [_] ->
-            ListenOpts = to_quicer_listener_opts(Opts),
-            Limiter = limiter(Opts),
-            ConnectionOpts = #{
-                conn_callback => emqx_quic_connection,
-                peer_unidi_stream_count => maps:get(peer_unidi_stream_count, Opts, 1),
-                peer_bidi_stream_count => maps:get(peer_bidi_stream_count, Opts, 10),
-                zone => zone(Opts),
-                listener => {quic, Name},
-                limiter => Limiter,
-                hibernate_after => maps:get(hibernate_after, ListenOpts)
-            },
-            StreamOpts = #{
-                stream_callback => emqx_quic_stream,
-                active => 1,
-                hibernate_after => maps:get(hibernate_after, ListenOpts)
-            },
-            quicer:spawn_listener(
-                Id,
-                ListenOn,
-                {ListenOpts, ConnectionOpts, StreamOpts}
-            );
-        [] ->
-            {ok, {skipped, quic_app_missing}}
-    end.
+do_start_listener(_, _, _, _) ->
+    {error, not_supported}.
 
 do_update_listener(Type, Name, OldConf, NewConf = #{bind := ListenOn}) when
     ?ESOCKD_LISTENER(Type)
@@ -505,28 +469,6 @@ do_update_listener(Type, Name, OldConf, NewConf) when
     ok = ranch:set_protocol_options(Id, WsOpts),
     %% No-op if the listener was not suspended.
     ranch:resume_listener(Id);
-do_update_listener(quic = Type, Name, OldConf, NewConf) ->
-    case quicer:listener(listener_id(Type, Name)) of
-        {ok, ListenerPid} ->
-            ListenOn = quic_listen_on(maps:get(bind, NewConf)),
-            case quicer_listener:reload(ListenerPid, ListenOn, to_quicer_listener_opts(NewConf)) of
-                ok ->
-                    ok;
-                Error ->
-                    case
-                        quic_listener_conf_rollback(
-                            ListenerPid, to_quicer_listener_opts(OldConf), Error
-                        )
-                    of
-                        ok ->
-                            {skip, Error};
-                        E ->
-                            E
-                    end
-            end;
-        E ->
-            E
-    end;
 do_update_listener(_Type, _Name, _OldConf, _NewConf) ->
     {error, not_supported}.
 
@@ -952,6 +894,7 @@ get_ssl_options(Conf = #{}) ->
 get_ssl_options(_) ->
     undefined.
 
+-ifndef(BUILD_WITHOUT_QUIC).
 %% @doc Get QUIC optional settings for low level tunings.
 %% @see quicer:quic_settings()
 -spec optional_quic_listener_opts(map()) -> map().
@@ -1007,6 +950,7 @@ quic_listener_optional_settings() ->
         max_binding_stateless_operations,
         stateless_operation_expiration_ms
     ].
+-endif.
 
 inject_root_fun(#{ssl_options := SSLOpts} = Opts) ->
     Opts#{ssl_options := emqx_tls_lib:maybe_inject_ssl_fun(root_fun, SSLOpts)}.
@@ -1061,6 +1005,7 @@ ensure_max_conns(<<"infinity">>) -> <<"infinity">>;
 ensure_max_conns(MaxConn) when is_binary(MaxConn) -> binary_to_integer(MaxConn);
 ensure_max_conns(MaxConn) -> MaxConn.
 
+-ifndef(BUILD_WITHOUT_QUIC).
 quic_listen_on(Bind) ->
     case Bind of
         {Addr, Port} when tuple_size(Addr) == 4 ->
@@ -1124,3 +1069,4 @@ quic_listener_conf_rollback(ListenerPid, #{bind := Bind} = Conf, Error) ->
             ),
             {error, {rollback_fail, RestoreErr}}
     end.
+-endif.

@@ -6,9 +6,6 @@ set -x
 MAKE_TARGET="${1:-}"
 
 case "${MAKE_TARGET}" in
-    emqx-enterprise-*)
-        EMQX_NAME='emqx-enterprise'
-        ;;
     emqx-*)
         EMQX_NAME='emqx'
         ;;

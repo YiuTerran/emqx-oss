@@ -4011,15 +4011,6 @@ listeners() ->
                     converter => fun(X, _) -> ensure_default_listener(X, wss) end,
                     required => {false, recursively}
                 }
-            )},
-        {"quic",
-            sc(
-                tombstone_map(name, ref("mqtt_quic_listener")),
-                #{
-                    desc => ?DESC(fields_listeners_quic),
-                    converter => fun keep_default_tombstone/2,
-                    required => {false, recursively}
-                }
             )}
     ].
 

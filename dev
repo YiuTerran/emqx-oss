@@ -41,7 +41,7 @@ COMMANDS:
 
 OPTIONS:
   -h|--help:         Print this usage info.
-  -p|--profile:      emqx | emqx-enterprise, defaults to 'PROFILE' env.
+  -p|--profile:      emqx, defaults to 'PROFILE' env.
   -c|--compile:      Force recompile, otherwise starts with the already built libs
                      in '_build/\$PROFILE/lib/'.
   -e|--ekka-epmd:    Force to use ekka_epmd.
@@ -158,16 +158,9 @@ case "${PROFILE}" in
     ce|emqx)
         PROFILE='emqx'
         ;;
-    ee|emqx-enterprise)
-        PROFILE='emqx-enterprise'
-        ;;
     ce-ex|emqx-elixir)
         export IS_ELIXIR=yes
         PROFILE='emqx'
-        ;;
-    ee-ex|emqx-enterprise-elixir)
-        export IS_ELIXIR=yes
-        PROFILE='emqx-enterprise'
         ;;
     *)
         echo "Unknown profile $PROFILE"
@@ -179,9 +172,6 @@ export PROFILE
 case "${PROFILE}" in
     emqx|emqx-elixir)
         export SCHEMA_MOD='emqx_conf_schema'
-        ;;
-    emqx-enterprise|emqx-enterprise-elixir)
-        export SCHEMA_MOD='emqx_enterprise_schema'
         ;;
 esac
 
@@ -361,39 +351,12 @@ copy_other_conf_files() {
     cp apps/emqx_auth/etc/acl.conf "$EMQX_ETC_DIR"/
 }
 
-is_current_profile_app() {
-    local app="$1"
-    case "$app" in
-        *emqx_telemetry*)
-            if [ "$PROFILE" = 'emqx-enterprise' ]; then
-                return 1
-            else
-                return 0
-            fi
-            ;;
-        *)
-            if [ "$PROFILE" = 'emqx' ]; then
-                if [ -f "$app"/BSL.txt ]; then
-                    return 1
-                else
-                    return 0
-                fi
-            else
-                return 0
-            fi
-            ;;
-    esac
-}
-
 ## apps to load
 apps_to_load() {
     local apps csl
     apps="$(./scripts/find-apps.sh | xargs)"
     csl=""
     for app in $apps; do
-        if ! is_current_profile_app "$app"; then
-            continue
-        fi
         name="$(basename "$app")"
         if [ -z "$csl" ]; then
             csl="$name"

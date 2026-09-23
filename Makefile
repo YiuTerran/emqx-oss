@@ -11,23 +11,20 @@ include env.sh
 # Dashboard version
 # from https://github.com/emqx/emqx-dashboard5
 export EMQX_DASHBOARD_VERSION ?= v1.10.5
-export EMQX_EE_DASHBOARD_VERSION ?= e1.8.8
 
 export EMQX_RELUP ?= true
 export EMQX_REL_FORM ?= tgz
-export QUICER_TLS_VER ?= sys
+export BUILD_WITHOUT_QUIC := 1
 
 -include default-profile.mk
 PROFILE ?= emqx
-REL_PROFILES := emqx emqx-enterprise
-PKG_PROFILES := emqx-pkg emqx-enterprise-pkg
+REL_PROFILES := emqx
+PKG_PROFILES := emqx-pkg
 PROFILES := $(REL_PROFILES) $(PKG_PROFILES) default
 
 CT_NODE_NAME ?= 'test@127.0.0.1'
 CT_READABLE ?= true
 CT_COVER_EXPORT_PREFIX ?= $(PROFILE)
-
-export REBAR_GIT_CLONE_OPTIONS += --depth=1
 
 ELIXIR_COMMON_DEPS := ensure-hex ensure-mix-rebar3 ensure-mix-rebar
 
@@ -89,11 +86,9 @@ $(REL_PROFILES:%=%-compile): $(REBAR) merge-config
 ct: $(REBAR) merge-config
 	@env ERL_FLAGS="-kernel prevent_overlapping_partitions false" $(REBAR) ct --name $(CT_NODE_NAME) -c -v --cover_export_name $(CT_COVER_EXPORT_PREFIX)-ct
 
-## only check bpapi for enterprise profile because it's a super-set.
 .PHONY: static_checks
 static_checks:
 	@$(REBAR) as check do xref, dialyzer
-	@if [ "$${PROFILE}" = 'emqx-enterprise' ]; then $(REBAR) ct --suite apps/emqx/test/emqx_static_checks --readable $(CT_READABLE); fi
 	./scripts/check-i18n-style.sh
 	./scripts/check_missing_reboot_apps.exs
 

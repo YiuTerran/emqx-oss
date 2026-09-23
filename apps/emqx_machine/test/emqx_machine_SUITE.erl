@@ -82,9 +82,6 @@ init_per_testcase(t_open_ports_check = TestCase, Config) ->
     ],
     Nodes = emqx_cth_cluster:start(Cluster, #{work_dir => emqx_cth_suite:work_dir(TestCase, Config)}),
     [{nodes, Nodes} | Config];
-init_per_testcase(t_sorted_reboot_apps, Config) ->
-    application:set_env(emqx_machine, applications, ?APPS ++ [emqx_license]),
-    Config;
 init_per_testcase(_TestCase, Config) ->
     application:set_env(emqx_machine, applications, ?APPS),
     Config.
@@ -132,9 +129,8 @@ t_shutdown_reboot(Config) ->
 
 t_sorted_reboot_apps(_Config) ->
     Apps = emqx_machine_boot:sorted_reboot_apps(),
-    SortApps = [App || App <- Apps, (App =:= emqx_dashboard orelse App =:= emqx_license)],
-    %% make sure emqx_license start early than emqx_dashboard
-    ?assertEqual([emqx_license, emqx_dashboard], SortApps).
+    ?assert(lists:member(emqx_dashboard, Apps)),
+    ?assertNot(lists:member(emqx_license, Apps)).
 
 t_custom_shard_transports(_Config) ->
     %% used to ensure the atom exists

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-## cut a new 5.x release for EMQX (opensource or enterprise).
+## cut a new 5.x community release.
 
 set -euo pipefail
 
@@ -12,9 +12,8 @@ cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.."
 usage() {
     cat <<EOF
 $0 RELEASE_GIT_TAG [option]
-RELEASE_GIT_TAG is a 'v*' or 'e*' tag for example:
+RELEASE_GIT_TAG is a 'v*' tag for example:
   v5.1.1
-  e5.1.0-beta.6
 
 options:
   -h|--help:         Print this usage.
@@ -36,7 +35,7 @@ options:
 For 5.X series the current working branch must be 'release-5X'
       --.--[  master  ]---------------------------.-----------.---
          \\                                      /
-          \`---[release-5X]----(v5.4.0 | e5.4.0)
+         \`---[release-5X]----(v5.4.0)
 EOF
 }
 
@@ -58,12 +57,6 @@ case "$TAG" in
     v*)
         TAG_PREFIX='v'
         PROFILE='emqx'
-        SKIP_APPUP='yes'
-        ;;
-    e*)
-        TAG_PREFIX='e'
-        PROFILE='emqx-enterprise'
-        #TODO change to no when we are ready to support hot-upgrade
         SKIP_APPUP='yes'
         ;;
     -h|--help)

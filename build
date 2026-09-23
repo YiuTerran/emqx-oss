@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # This script helps to build release artifacts.
-# arg1: profile, e.g. emqx | emqx-enterprise
+# arg1: profile, emqx | emqx-pkg
 # arg2: artifact, e.g. rel | relup | tgz | pkg
 
 set -euo pipefail
@@ -21,29 +21,16 @@ log_red() {
 PROFILE_ARG="$1"
 ARTIFACT="$2"
 
-is_enterprise() {
-    case "$1" in
-        *enterprise*)
-            echo 'yes'
-            ;;
-        *)
-            echo 'no'
-            ;;
-    esac
-}
-PROFILE_ENV="${PROFILE:-${PROFILE_ARG}}"
-case "$(is_enterprise "$PROFILE_ARG"),$(is_enterprise "$PROFILE_ENV")" in
-    'yes,yes')
-        true
-        ;;
-    'no,no')
-        true
-        ;;
-    *)
-        log_red "PROFILE env var is set to '$PROFILE_ENV', but '$0' arg1 is '$PROFILE_ARG'"
-        exit 1
-        ;;
+case "$PROFILE_ARG" in
+    emqx|emqx-pkg) ;;
+    *) log_red "Unsupported profile: $PROFILE_ARG"; exit 1 ;;
 esac
+
+PROFILE_ENV="${PROFILE:-${PROFILE_ARG}}"
+if [ "$PROFILE_ENV" != "$PROFILE_ARG" ]; then
+    log_red "PROFILE env var is set to '$PROFILE_ENV', but '$0' arg1 is '$PROFILE_ARG'"
+    exit 1
+fi
 
 # make sure PROFILE is exported, it is needed by rebar.config.erl
 PROFILE=$PROFILE_ARG
@@ -56,12 +43,6 @@ PKG_VSN="${PKG_VSN:-$(./pkg-vsn.sh "$PROFILE")}"
 export PKG_VSN
 
 SYSTEM="$(./scripts/get-distro.sh)"
-
-if [[ $SYSTEM == "el7" ]];
-then
-    echo "WARNING: NO SECURITY UPDATES for CentOS 7 QUIC transport"
-    export QUICER_TLS_VER=openssl
-fi
 
 ARCH="$(uname -m)"
 case "$ARCH" in
@@ -129,14 +110,7 @@ prepare_erl_libs() {
 }
 
 make_docs() {
-    case "$(is_enterprise "$PROFILE")" in
-        'yes')
-            SCHEMA_MODULE='emqx_enterprise_schema'
-            ;;
-        'no')
-            SCHEMA_MODULE='emqx_conf_schema'
-            ;;
-    esac
+    SCHEMA_MODULE='emqx_conf_schema'
     prepare_erl_libs "_build/$PROFILE/checkouts"
     prepare_erl_libs "_build/$PROFILE/lib"
     local docdir="_build/docgen/$PROFILE"
@@ -153,27 +127,6 @@ make_docs() {
         # it is not a big deal if we cannot generate the desc
         log_red "NOT Generated: $desc due to jq command missing."
     fi
-}
-
-## arg1 is the profile for which the following args (as app names) should be excluded
-assert_no_excluded_deps() {
-    local profile="$1"
-    shift 1
-    if [ "$PROFILE" != "$profile" ]; then
-        # not currently building the profile which has apps to be excluded
-        return 0
-    fi
-    local rel_dir="_build/$PROFILE/rel/emqx/lib"
-    local excluded_apps=( "$@" )
-    local found
-    for app in "${excluded_apps[@]}"; do
-        found="$($FIND "$rel_dir" -maxdepth 1 -type d -name "$app-*")"
-        if [ -n "${found}" ]; then
-            log_red "ERROR: ${app} should not be included in ${PROFILE}"
-            log_red "ERROR: found ${app} in ${rel_dir}"
-            exit 1
-        fi
-    done
 }
 
 just_compile() {
@@ -202,7 +155,6 @@ make_rel() {
     just_compile
     # now assemble the release tar
     ./rebar3 as "$PROFILE" "$release_or_tar"
-    assert_no_excluded_deps emqx-enterprise emqx_telemetry
 }
 
 make_elixir_rel() {
@@ -214,7 +166,6 @@ make_elixir_rel() {
     env MIX_ENV="$PROFILE" mix local.hex 2.0.6 --if-missing --force
     env MIX_ENV="$PROFILE" mix deps.get
     env MIX_ENV="$PROFILE" mix release --overwrite
-    assert_no_excluded_deps emqx-enterprise emqx_telemetry
 }
 
 make_relup() {
@@ -288,9 +239,6 @@ make_tgz() {
     $TAR zxf "${src_tarball}" -C "${tard}/emqx"
     if [ -f "${tard}/emqx/releases/${PKG_VSN}/relup" ]; then
         ./scripts/relup-build/inject-relup.escript "${tard}/emqx/releases/${PKG_VSN}/relup"
-    fi
-    if [ -z "${BUILD_WITHOUT_QUIC:-}" ]; then
-        find "${tard}/emqx"/lib/quicer-*/priv/ -type f ! -name 'libquicer_nif.so' -print -delete
     fi
     ## try to be portable for tar.gz packages.
     ## for DEB and RPM packages the dependencies are resoved by yum and apt
@@ -490,10 +438,10 @@ function join {
 export_elixir_release_vars() {
   local profile="$1"
   case "$profile" in
-    emqx|emqx-enterprise)
+    emqx)
       export ELIXIR_MAKE_TAR=${ELIXIR_MAKE_TAR:-no}
       ;;
-    emqx-pkg|emqx-enterprise-pkg)
+    emqx-pkg)
       export ELIXIR_MAKE_TAR=${ELIXIR_MAKE_TAR:-yes}
       ;;
     *)

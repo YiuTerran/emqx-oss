@@ -1,3 +1,3 @@
-# Sync changes to emqx-enterprise
+# EMQX Community Helm chart
 
-When making changes in charts, please update `emqx` charts and run `./sync-enterprise.sh`.
+The community chart is in `deploy/charts/emqx`.

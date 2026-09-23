@@ -12,7 +12,7 @@ cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.."
 
 usage() {
     echo "Usage: $0 <EMQX_PROFILE> [<CURRENT_VERSION>]"
-    echo "e.g.   $0 enterprise 4.3.10"
+    echo "e.g.   $0 emqx 5.8.9"
     exit 1
 }
 
@@ -49,14 +49,10 @@ else
     IS_RELEASE=false
 fi
 
-case "${PROFILE}" in
-    *enterprise*)
-        GIT_TAG_PREFIX="e"
-        ;;
-    *)
-        GIT_TAG_PREFIX="v"
-        ;;
-esac
+if [ "$PROFILE" != 'emqx' ]; then
+    usage
+fi
+GIT_TAG_PREFIX="v"
 
 while read -r git_tag; do
     # shellcheck disable=SC2207

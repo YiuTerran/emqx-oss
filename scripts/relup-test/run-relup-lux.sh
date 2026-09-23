@@ -24,10 +24,6 @@ if [ ! -d '.git' ] && [ -z "${CUR_VSN:-}" ]; then
 fi
 
 case "$old_vsn" in
-    e*)
-        cur_vsn="${CUR_VSN:-$(./pkg-vsn.sh emqx-enterprise)}"
-        profile='emqx-enterprise'
-        ;;
     v*)
         cur_vsn="${CUR_VSN:-$(./pkg-vsn.sh emqx)}"
         profile='emqx'
@@ -42,8 +38,8 @@ if [ "$rebuild" = "--build" ]; then
     make "${profile}-tgz"
 fi
 
-# From now on, no need for the v|e prefix
-OLD_VSN="${old_vsn#[e|v]}"
+# From now on, no need for the v prefix
+OLD_VSN="${old_vsn#v}"
 
 OLD_PKG="$(pwd)/_upgrade_base/${profile}-${OLD_VSN}-ubuntu20.04-amd64.tar.gz"
 CUR_PKG="$(pwd)/_packages/${profile}/${profile}-${cur_vsn}-ubuntu20.04-amd64.tar.gz"

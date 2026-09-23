@@ -5,7 +5,6 @@ Equivalent to emqx-boot.bats
 
 Usage:
     PROFILE=emqx pytest scripts/test/test_emqx_boot.py -v
-    PROFILE=emqx-enterprise pytest scripts/test/test_emqx_boot.py -v
 """
 
 import os

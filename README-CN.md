@@ -2,8 +2,12 @@
 
 # EMQX
 
+本 fork 基于 Apache 2.0 许可的 EMQX 5.8.9 社区版，加入会话注册表残留清理和
+Apache 2.0 许可的 esockd 连接上限修复。仓库已移除含 BSL 许可的应用目录和企业版构建入口；
+LDAP 认证和 MQTT over QUIC 在本 fork 中不可用。请使用本仓库源码及 `emqx` profile 构建；上游 `latest`
+镜像不包含本 fork 的修复。
+
 [![GitHub Release](https://img.shields.io/github/release/emqx/emqx?color=brightgreen&label=Release)](https://github.com/emqx/emqx/releases)
-[![Build Status](https://github.com/emqx/emqx/actions/workflows/_push-entrypoint.yaml/badge.svg)](https://github.com/emqx/emqx/actions/workflows/_push-entrypoint.yaml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/emqx/emqx?label=Docker%20Pulls)](https://hub.docker.com/r/emqx/emqx)
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/emqx/emqx?label=OpenSSF%20Scorecard&style=flat)](https://securityscorecards.dev/viewer/?uri=github.com/emqx/emqx)
 [![Slack](https://img.shields.io/badge/Slack-EMQ-39AE85?logo=slack)](https://slack-invite.emqx.io/)
@@ -83,25 +87,27 @@ EMQX Cloud 文档：[docs.emqx.com/zh/cloud/latest](https://docs.emqx.com/zh/clo
 
 ## 从源码构建
 
-`master` 分支是最新的 5 版本，`main-v4.4` 是 4.4 版本。
-
-EMQX 4.4 版本需要 OTP 24；5 版本则可以使用 OTP 25 和 26 构建。
+本 fork 固定在 EMQX 5.8.9，建议使用 OTP 26。在本仓库根目录构建：
 
 ```bash
-git clone https://github.com/emqx/emqx.git
-cd emqx
-make
+make emqx-rel
 _build/emqx/rel/emqx/bin/emqx console
 ```
 
-对于 4.2 或更早的版本，需要从另一个仓库构建。
+在 macOS 上使用 OTP 26 编译 RocksDB 时，先安装 `snappy` 和 `lz4`，再让
+`erlang-rocksdb` 使用 Homebrew 提供的库，避免其捆绑的旧版 Snappy 测试代码
+在新版本 Apple Clang 下编译失败：
 
 ```bash
-git clone https://github.com/emqx/emqx-rel.git
-cd emqx-rel
-make
-_build/emqx/rel/emqx/bin/emqx console
+brew install snappy lz4
+ERLANG_ROCKSDB_OPTS="-DWITH_SNAPPY=ON -DWITH_LZ4=ON -DCMAKE_PREFIX_PATH=$(brew --prefix)" \
+  BUILD_WITHOUT_JQ=1 mise exec erlang@26.2.5.21 -- make emqx-rel
 ```
+
+本仓库 `.tool-versions` 固定的 OTP 补丁版本为 `26.2.5.14-1`；上面的命令使用本机已安装的
+`26.2.5.21`。`BUILD_WITHOUT_JQ=1` 跳过本机尚未能编译通过的 JQ 原生依赖，RocksDB 仍会编译。
+生成的 RocksDB NIF 动态链接 Homebrew 的 Snappy/LZ4；如果将 macOS 构建结果复制到其他机器，
+目标机器也需要这两个库。
 
 ## 源码许可
 

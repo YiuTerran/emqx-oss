@@ -1,5 +1,5 @@
 #!/usr/bin/env escript
-%%! -pa _build/emqx-enterprise/lib/emqx_utils/ebin
+%%! -pa _build/emqx/lib/emqx_utils/ebin
 %% -*- erlang -*-
 %%--------------------------------------------------------------------
 %% Generate "used-by" dependency relationships for EMQX apps
@@ -31,7 +31,7 @@
 %%   ./scripts/gen_deps.escript
 %%
 %% Requirements:
-%%   - Project must be compiled (BEAM files in _build/emqx-enterprise/lib/)
+%%   - Project must be compiled (BEAM files in _build/emqx/lib/)
 %%   - OTP 25+ (for maybe expressions)
 %%--------------------------------------------------------------------
 
@@ -39,7 +39,7 @@
 -mode(compile).
 
 main(_Args) ->
-    BuildDir = "_build/emqx-enterprise",
+    BuildDir = "_build/emqx",
     AppsDir = "apps",
     OutputFile = "deps.txt",
 

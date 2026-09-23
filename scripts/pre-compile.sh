@@ -4,17 +4,14 @@ set -euo pipefail
 
 [ "${DEBUG:-0}" -eq 1 ] && set -x
 
-# NOTE: PROFILE_STR may not be exactly PROFILE (emqx or emqx-enterprise)
-# it might be with suffix such as -pkg etc.
+# PROFILE_STR may include the -pkg suffix.
 PROFILE_STR="${1}"
 
 case "$PROFILE_STR" in
-    *enterprise*)
-        dashboard_version="$EMQX_EE_DASHBOARD_VERSION"
-        ;;
-    *)
+    emqx|emqx-pkg)
         dashboard_version="$EMQX_DASHBOARD_VERSION"
         ;;
+    *) echo "Unsupported profile: $PROFILE_STR" >&2; exit 1 ;;
 esac
 
 # ensure dir

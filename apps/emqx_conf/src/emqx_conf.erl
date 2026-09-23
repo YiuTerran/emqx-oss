@@ -162,8 +162,6 @@ dump_schema(Dir, SchemaModule) ->
         ["en", "zh"]
     ).
 
-load(emqx_enterprise_schema, emqx_telemetry) ->
-    ignore;
 load(_, Lib) ->
     case application:load(Lib) of
         ok -> ok;
@@ -492,8 +490,6 @@ resolve_schema_module() ->
     case os:getenv("PROFILE") of
         "emqx" ->
             emqx_conf_schema;
-        "emqx-enterprise" ->
-            emqx_enterprise_schema;
         false ->
             error("PROFILE environment variable is not set")
     end.

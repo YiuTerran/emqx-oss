@@ -22,15 +22,10 @@ defmodule EMQXDsBackends.MixProject do
   end
 
   def deps() do
-    %{edition_type: edition_type} = UMP.profile_info()
-    ee_deps = if edition_type == :enterprise,
-      do: [{:emqx_ds_builtin_raft, in_umbrella: true}],
-      else: []
-
-    ee_deps ++ [
+    [
       {:emqx_utils, in_umbrella: true},
       {:emqx_durable_storage, in_umbrella: true},
-      {:emqx_ds_builtin_local, in_umbrella: true},
+      {:emqx_ds_builtin_local, in_umbrella: true}
     ]
   end
 end

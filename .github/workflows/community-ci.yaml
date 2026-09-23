@@ -1,0 +1,50 @@
+name: Community CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-22.04
+    container: ghcr.io/emqx/emqx-builder/5.6-2:1.15.7-26.2.5.14-1-ubuntu22.04
+    env:
+      PROFILE: emqx
+      BUILD_WITHOUT_QUIC: "1"
+      DOWNLOAD_I18N_TRANSLATIONS: "false"
+      ERL_FLAGS: "+IOp 4 +IOt 4"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Trust checkout directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Verify source licenses
+        run: test -z "$(find apps -name BSL.txt -print -quit)"
+      - name: Compile community edition and tests
+        run: make emqx-compile test-compile
+      - name: Run session registry regression tests
+        run: ./rebar3 ct --name test@127.0.0.1 --suite apps/emqx/test/emqx_cm_registry_keeper_SUITE.erl
+      - name: Run esockd file limit regression test
+        run: ./rebar3 ct --name test@127.0.0.1 --suite apps/emqx/test/emqx_esockd_limit_SUITE.erl
+      - name: Run TCP listener tests
+        run: ./rebar3 ct --name test@127.0.0.1 --suite apps/emqx/test/emqx_listeners_SUITE.erl --case t_max_conns_tcp,t_current_conns_tcp
+      - name: Run community boot tests
+        run: |
+          ./rebar3 ct --name test@127.0.0.1 --suite apps/emqx_machine/test/emqx_machine_SUITE.erl --case t_sorted_reboot_apps
+          ./rebar3 ct --name test@127.0.0.1 --suite apps/emqx_machine/test/emqx_machine_SUITE.erl --case t_shutdown_reboot
+      - name: Assemble community release
+        run: make emqx-rel
+      - name: Verify QUIC dependency is absent
+        run: test -z "$(find _build/emqx/rel/emqx/lib -maxdepth 1 -name 'quicer-*' -print -quit)"
+      - name: Verify more than 1024 MQTT connections
+        run: |
+          ulimit -n 8192
+          release_bin=_build/emqx/rel/emqx/bin/emqx
+          "$release_bin" start
+          trap '"$release_bin" stop' EXIT
+          python3 scripts/test/check-connection-capacity.py

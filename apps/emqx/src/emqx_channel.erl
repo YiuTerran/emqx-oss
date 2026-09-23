@@ -2834,26 +2834,10 @@ init_alias_maximum(_ConnPkt, _ClientInfo) ->
 
 %% MQTT 5
 ensure_keepalive(#{'Server-Keep-Alive' := Interval}, Channel = #channel{conninfo = ConnInfo}) ->
-    ensure_quic_conn_idle_timeout(Interval, Channel),
     ensure_keepalive_timer(Interval, Channel#channel{conninfo = ConnInfo#{keepalive => Interval}});
 %% MQTT 3,4
 ensure_keepalive(_AckProps, Channel = #channel{conninfo = ConnInfo}) ->
-    ensure_quic_conn_idle_timeout(maps:get(keepalive, ConnInfo), Channel),
     ensure_keepalive_timer(maps:get(keepalive, ConnInfo), Channel).
-
-ensure_quic_conn_idle_timeout(Timeout, #channel{
-    clientinfo = #{zone := Zone},
-    conninfo = #{socktype := quic, sock := Sock}
-}) ->
-    Conn = element(2, Sock),
-    #{keepalive_multiplier := Mul} =
-        emqx_config:get_zone_conf(Zone, [mqtt]),
-    %%% The original idle_timeout is from the listener, now we update it per connection
-    %%% Conn could be closed so we don't check the ret val
-    _ = quicer:setopt(Conn, settings, #{idle_timeout_ms => timer:seconds(Timeout * Mul)}, false),
-    ok;
-ensure_quic_conn_idle_timeout(_, _) ->
-    ok.
 
 ensure_keepalive_timer(0, Channel) ->
     Channel;

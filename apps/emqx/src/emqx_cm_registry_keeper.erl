@@ -40,6 +40,9 @@
 -define(CACHE_COUNT_THRESHOLD, 1000).
 -define(MIN_COUNT_INTERVAL_SECONDS, 5).
 -define(CLEANUP_CHUNK_SIZE, 10000).
+-define(STALE_GC_CHUNK_SIZE, 500).
+-define(STALE_GC_CHUNK_DELAY, timer:seconds(1)).
+-define(STALE_GC_INTERVAL, timer:minutes(10)).
 
 -define(IS_HIST_ENABLED(RETAIN), (RETAIN > 0)).
 
@@ -55,7 +58,8 @@ init(_) ->
             {ok, #{no_deletes => true}};
         false ->
             ok = send_delay_start(),
-            {ok, #{next_clientid => undefined}}
+            _ = erlang:send_after(?STALE_GC_INTERVAL, self(), stale_gc_start),
+            {ok, #{next_clientid => undefined, stale_gc_running => false}}
     end.
 
 %% @doc Count the number of sessions.
@@ -135,6 +139,12 @@ handle_info(start, #{next_clientid := NextClientId} = State) ->
             ok = send_delay_start(),
             {noreply, State}
     end;
+handle_info(stale_gc_start, #{stale_gc_running := false} = State) ->
+    stale_gc_step(undefined, State);
+handle_info({stale_gc_continue, ClientId},
+    #{stale_gc_running := true, stale_gc_cursor := ClientId} = State
+) ->
+    stale_gc_step(ClientId, State);
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -176,6 +186,32 @@ cleanup_loop(ClientId, Count, IsExpired) ->
         Records
     ),
     cleanup_loop(Next, Count - 1, IsExpired).
+
+stale_gc_step(ClientId, State) ->
+    Next = stale_gc_chunk(ClientId),
+    case Next of
+        '$end_of_table' ->
+            _ = erlang:send_after(?STALE_GC_INTERVAL, self(), stale_gc_start),
+            {noreply, State#{stale_gc_running => false, stale_gc_cursor => undefined}};
+        _ ->
+            _ = erlang:send_after(?STALE_GC_CHUNK_DELAY, self(), {stale_gc_continue, Next}),
+            {noreply, State#{stale_gc_running => true, stale_gc_cursor => Next}}
+    end.
+
+stale_gc_chunk(ClientId) ->
+    ClusterNodes = mria:cluster_nodes(all),
+    stale_gc_loop(ClientId, ?STALE_GC_CHUNK_SIZE, ClusterNodes).
+
+stale_gc_loop(ClientId, 0, _ClusterNodes) ->
+    ClientId;
+stale_gc_loop('$end_of_table', _Count, _ClusterNodes) ->
+    '$end_of_table';
+stale_gc_loop(undefined, Count, ClusterNodes) ->
+    stale_gc_loop(mnesia:dirty_first(?CHAN_REG_TAB), Count, ClusterNodes);
+stale_gc_loop(ClientId, Count, ClusterNodes) ->
+    Next = mnesia:dirty_next(?CHAN_REG_TAB, ClientId),
+    ok = emqx_cm_registry:cleanup_stale_channels(ClientId, ClusterNodes),
+    stale_gc_loop(Next, Count - 1, ClusterNodes).
 
 is_hist_enabled() ->
     retain_duration() > 0.

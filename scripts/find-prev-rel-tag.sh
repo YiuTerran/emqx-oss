@@ -4,9 +4,6 @@ set -euo pipefail
 if [ -z "${PREV_TAG_MATCH_PATTERN:-}" ]; then
     PROFILE="${PROFILE:-${1:-}}"
     case "$PROFILE" in
-        emqx-enterprise*)
-            PREV_TAG_MATCH_PATTERN='e*'
-            ;;
         emqx*)
             PREV_TAG_MATCH_PATTERN='v*'
             ;;

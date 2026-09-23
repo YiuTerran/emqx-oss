@@ -127,7 +127,7 @@ restart_type(App) ->
 %% 1. due to static config change
 %% 2. after join a cluster
 
-%% the list of (re)started apps depends on release type/edition
+%% the list of (re)started apps depends on the community release
 reboot_apps() ->
     ConfigApps0 = application:get_env(emqx_machine, applications, []),
     BaseRebootApps = basic_reboot_apps(),
@@ -137,19 +137,12 @@ reboot_apps() ->
 basic_reboot_apps() ->
     #{
         common_business_apps := CommonBusinessApps,
-        ee_business_apps := EEBusinessApps,
         ce_business_apps := CEBusinessApps
     } = read_apps(),
-    EditionSpecificApps =
-        case emqx_release:edition() of
-            ee -> EEBusinessApps;
-            ce -> CEBusinessApps;
-            _ -> []
-        end,
-    BusinessApps = CommonBusinessApps ++ EditionSpecificApps,
+    BusinessApps = CommonBusinessApps ++ CEBusinessApps,
     ?BASIC_REBOOT_APPS ++ (BusinessApps -- excluded_apps()).
 
-%% @doc Read business apps belonging to the current profile/edition.
+%% @doc Read business apps belonging to the community release.
 read_apps() ->
     PrivDir = code:priv_dir(emqx_machine),
     RebootListPath = filename:join([PrivDir, "reboot_lists.eterm"]),
@@ -190,14 +183,7 @@ runtime_deps() ->
         %% Since standalone apps like `emqx_mongodb' are already dependencies of `emqx_bridge_*'
         %% apps, we may apply the same tactic for `emqx_connector' and inject individual bridges
         %% as its dependencies.
-        {emqx_connector, fun(App) -> lists:prefix("emqx_bridge_", atom_to_list(App)) end},
-        %% emqx_fdb_ds is an EE app
-        {emqx_durable_storage, emqx_fdb_ds},
-        %% emqx_ds_builtin is an EE app
-        {emqx_ds_backends, emqx_ds_builtin_raft},
-        %% emqx_ds_fdb_backend is an EE app
-        {emqx_ds_backends, emqx_ds_fdb_backend},
-        {emqx_dashboard, emqx_license}
+        {emqx_connector, fun(App) -> lists:prefix("emqx_bridge_", atom_to_list(App)) end}
     ].
 
 sorted_reboot_apps(Apps) ->

@@ -33,6 +33,7 @@
 ]).
 
 -export([lookup_channels/1, lookup_all_channels/1]).
+-export([cleanup_stale_channels/1, cleanup_stale_channels/2]).
 
 %% gen_server callbacks
 -export([
@@ -46,7 +47,8 @@
 
 %% Internal exports (RPC)
 -export([
-    do_cleanup_channels/1
+    do_cleanup_channels/1,
+    do_cleanup_stale_channel/1
 ]).
 
 -include("emqx.hrl").
@@ -135,6 +137,43 @@ lookup_channels(ClientId) ->
 lookup_all_channels(ClientId) ->
     Chans = mnesia:dirty_read(?CHAN_REG_TAB, ClientId),
     [ChanPid || #channel{pid = ChanPid} <- Chans, is_pid(ChanPid)].
+
+%% Remove only registrations whose owner is known to be gone.  A stopped node
+%% that is still a cluster member may return with its sessions intact.
+-spec cleanup_stale_channels(emqx_types:clientid()) -> ok.
+cleanup_stale_channels(ClientId) ->
+    cleanup_stale_channels(ClientId, mria:cluster_nodes(all)).
+
+%% The keeper passes one membership snapshot to each bounded scan batch.
+-spec cleanup_stale_channels(emqx_types:clientid(), [node()]) -> ok.
+cleanup_stale_channels(ClientId, ClusterNodes) ->
+    lists:foreach(
+        fun
+            (#channel{pid = Pid} = Channel) when is_pid(Pid) ->
+                case is_stale_pid(Pid, ClusterNodes) of
+                    true -> cleanup_stale_channel(Channel);
+                    false -> ok
+                end;
+            (_) ->
+                ok
+        end,
+        mnesia:dirty_read(?CHAN_REG_TAB, ClientId)
+    ).
+
+is_stale_pid(Pid, _ClusterNodes) when node(Pid) =:= node() ->
+    not erlang:is_process_alive(Pid);
+is_stale_pid(Pid, ClusterNodes) ->
+    mria_config:whoami() =/= replicant andalso
+        not lists:member(node(Pid), ClusterNodes).
+
+cleanup_stale_channel(Channel) ->
+    case mria:transaction(?CM_SHARD, fun ?MODULE:do_cleanup_stale_channel/1, [Channel]) of
+        {atomic, ok} ->
+            ok;
+        {aborted, Reason} ->
+            ?SLOG(warning, #{msg => "failed_to_clean_stale_channel", reason => Reason}),
+            ok
+    end.
 
 %% Return 'true' or 'false' if it's a local pid.
 %% Otherwise return 'unknown'.
@@ -225,6 +264,12 @@ do_cleanup_channels(Node) ->
         fun(Chan) -> delete_channel(IsHistEnabled, Chan) end,
         mnesia:select(?CHAN_REG_TAB, Pat, write)
     ).
+
+do_cleanup_stale_channel(#channel{chid = ClientId} = Channel) ->
+    case lists:member(Channel, mnesia:read(?CHAN_REG_TAB, ClientId, write)) of
+        true -> delete_channel(is_hist_enabled(), Channel);
+        false -> ok
+    end.
 
 delete_channel(IsHistEnabled, Chan) ->
     mnesia:delete_object(?CHAN_REG_TAB, Chan, write),

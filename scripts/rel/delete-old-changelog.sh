@@ -6,7 +6,6 @@ set -euo pipefail
 
 top_dir="$(git rev-parse --show-toplevel)"
 prev_ce_tag="$("$top_dir"/scripts/find-prev-rel-tag.sh 'emqx')"
-prev_ee_tag="$("$top_dir"/scripts/find-prev-rel-tag.sh 'emqx-enterprise')"
 
 ## check if a file's first commit is contained in the previous release
 is_released() {
@@ -20,8 +19,8 @@ is_released() {
 ## and delete the file if it is
 check_and_delete_file() {
     file="$1"
-    if is_released "$file" "$prev_ce_tag" || is_released "$file" "$prev_ee_tag"; then
-        echo "Deleting $file, released in $prev_ce_tag or $prev_ee_tag"
+    if is_released "$file" "$prev_ce_tag"; then
+        echo "Deleting $file, released in $prev_ce_tag"
         rm -f "$file"
     fi
 }
@@ -33,8 +32,8 @@ if [ -n "$file_in_arg" ]; then
     exit 0
 fi
 
-## loop over files in $top_dir/changes/{ce|ee}
+## loop over files in $top_dir/changes/ce
 ## and delete the ones that are included in the previous release
 while read -r file; do
     check_and_delete_file "$file"
-done < <(find "$top_dir/changes/ce" "$top_dir/changes/ee"  -type f -name '*.en.md')
+done < <(find "$top_dir/changes/ce" -type f -name '*.en.md')

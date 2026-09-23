@@ -383,7 +383,7 @@ takeover_session_end({ConnMod, ChanPid}) ->
 -spec pick_channel(emqx_types:clientid()) ->
     option(pid()).
 pick_channel(ClientId) ->
-    case lookup_channels(ClientId) of
+    case lookup_channels_for_stepdown(ClientId) of
         [] ->
             undefined;
         [ChanPid] ->
@@ -403,7 +403,7 @@ pick_channel(ClientId) ->
 %% Used by `emqx_persistent_session_ds'
 -spec takeover_kick(emqx_types:clientid()) -> ok.
 takeover_kick(ClientId) ->
-    case lookup_channels(ClientId) of
+    case lookup_channels_for_stepdown(ClientId) of
         [] ->
             ok;
         ChanPids ->
@@ -478,7 +478,7 @@ do_takeover_begin(ClientId, ChanPid) ->
 %% @doc Discard all the sessions identified by the ClientId.
 -spec discard_session(emqx_types:clientid()) -> ok.
 discard_session(ClientId) when is_binary(ClientId) ->
-    case lookup_channels(ClientId) of
+    case lookup_channels_for_stepdown(ClientId) of
         [] -> ok;
         ChanPids -> lists:foreach(fun(Pid) -> discard_session(ClientId, Pid) end, ChanPids)
     end.
@@ -640,7 +640,7 @@ takeover_kick_session(ClientId, ChanPid) ->
     end.
 
 kick_session(ClientId) ->
-    case lookup_channels(ClientId) of
+    case lookup_channels_for_stepdown(ClientId) of
         [] ->
             ?SLOG(
                 warning,
@@ -653,12 +653,19 @@ kick_session(ClientId) ->
     end.
 
 try_kick_session(ClientId) ->
-    case lookup_channels(ClientId) of
+    case lookup_channels_for_stepdown(ClientId) of
         [] ->
             ok;
         ChanPids ->
             kick_session_chans(ClientId, ChanPids)
     end.
+
+lookup_channels_for_stepdown(ClientId) ->
+    case emqx_cm_registry:is_enabled() of
+        true -> ok = emqx_cm_registry:cleanup_stale_channels(ClientId);
+        false -> ok
+    end,
+    lookup_channels(ClientId).
 
 %% @doc Is clean start?
 % is_clean_start(#{clean_start := false}) -> false;

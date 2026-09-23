@@ -23,7 +23,7 @@ help() {
     echo "    To display this usage information"
     echo ""
     echo "--profile <PROFILE>:"
-    echo "    EMQX profile to build (emqx|emqx-enterprise)"
+    echo "    EMQX profile to build (emqx)"
     echo ""
     echo "--pkgtype tgz|pkg|rel|relup:"
     echo "    Specify which package to build, tgz for .tar.gz,"
@@ -125,6 +125,7 @@ fi
 ARCH="${ARCH:-${NATIVE_ARCH:-}}"
 
 [ -z "${PROFILE:-}" ] && die "missing --profile"
+[ "$PROFILE" != 'emqx' ] && die "unsupported --profile: $PROFILE"
 [ -z "${PKGTYPE:-}" ] && die "missing --pkgtype"
 [ -z "${EMQX_BUILDER:-}" ] && die "missing --builder"
 [ -z "${ARCH:-}" ] && die "missing --arch"

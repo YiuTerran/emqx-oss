@@ -16,8 +16,7 @@
         emqx_auth_mysql,
         emqx_auth_postgresql,
         emqx_auth_mongodb,
-        emqx_auth_redis,
-        emqx_auth_ldap
+        emqx_auth_redis
     ]},
     {env, []},
     {modules, []},

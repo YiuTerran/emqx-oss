@@ -52,11 +52,8 @@ case "${BASE_TAG:-}" in
     v*)
         PROFILE="emqx"
         ;;
-    e*)
-        PROFILE="emqx-enterprise"
-        ;;
     *)
-        logerr "Unsupported -b|--base option, must be v* or e*"
+        logerr "Unsupported -b|--base option, must be v*"
         exit 1
         ;;
 esac
@@ -97,9 +94,6 @@ section() {
 }
 
 changes_dir=("$top_dir/changes/ce")
-if [ "$PROFILE" == "emqx-enterprise" ]; then
-    changes_dir+=("$top_dir/changes/ee")
-fi
 
 while read -r file; do
    PRS+=("$file")

@@ -27,12 +27,14 @@
 
 -define(SERVER_KEY_PASSWORD, "sErve7r8Key$!").
 
-all() -> emqx_common_test_helpers:all(?MODULE).
+all() ->
+    emqx_common_test_helpers:all(?MODULE) --
+        [t_quic_conn, t_quic_update_opts, t_quic_update_opts_fail].
 
 init_per_suite(Config) ->
     generate_tls_certs(Config),
     WorkDir = emqx_cth_suite:work_dir(Config),
-    Apps = emqx_cth_suite:start([quicer, emqx], #{work_dir => WorkDir}),
+    Apps = emqx_cth_suite:start([emqx], #{work_dir => WorkDir}),
     [{apps, Apps} | Config].
 
 end_per_suite(Config) ->

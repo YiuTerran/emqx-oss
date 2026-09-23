@@ -205,7 +205,6 @@ END
 
 matrix() {
     local runner
-    local profile
     local entries=()
 
     # If no apps to test, return empty array
@@ -223,43 +222,9 @@ matrix() {
         case "${app}" in
             apps/emqx)
                 entries+=("$(format_app_entry "$app" 10 emqx "$runner")")
-                entries+=("$(format_app_entry "$app" 10 emqx-enterprise "$runner")")
-                ;;
-            apps/emqx_bridge)
-                entries+=("$(format_app_entry "$app" 1 emqx "$runner")")
-                entries+=("$(format_app_entry "$app" 1 emqx-enterprise "$runner")")
-                ;;
-            apps/emqx_connector)
-                entries+=("$(format_app_entry "$app" 1 emqx "$runner")")
-                entries+=("$(format_app_entry "$app" 1 emqx-enterprise "$runner")")
-                ;;
-            apps/emqx_dashboard)
-                entries+=("$(format_app_entry "$app" 1 emqx "$runner")")
-                entries+=("$(format_app_entry "$app" 1 emqx-enterprise "$runner")")
-                ;;
-            apps/emqx_prometheus)
-                entries+=("$(format_app_entry "$app" 1 emqx "$runner")")
-                entries+=("$(format_app_entry "$app" 1 emqx-enterprise "$runner")")
-                ;;
-            apps/emqx_rule_engine)
-                entries+=("$(format_app_entry "$app" 1 emqx "$runner")")
-                entries+=("$(format_app_entry "$app" 1 emqx-enterprise "$runner")")
-                ;;
-            apps/emqx_management)
-                entries+=("$(format_app_entry "$app" 1 emqx "$runner")")
-                entries+=("$(format_app_entry "$app" 1 emqx-enterprise "$runner")")
-                ;;
-            apps/emqx_auth_http)
-                entries+=("$(format_app_entry "$app" 1 emqx "$runner")")
-                entries+=("$(format_app_entry "$app" 1 emqx-enterprise "$runner")")
                 ;;
             apps/*)
-                if [[ -f "${app}/BSL.txt" ]]; then
-                    profile='emqx-enterprise'
-                else
-                    profile='emqx'
-                fi
-                entries+=("$(format_app_entry "$app" 1 "$profile" "$runner")")
+                entries+=("$(format_app_entry "$app" 1 emqx "$runner")")
                 ;;
             *)
                 echo "unknown app: $app"

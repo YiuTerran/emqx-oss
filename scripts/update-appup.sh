@@ -22,9 +22,6 @@ cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 PROFILE="${1:-}"
 GIT_REPO='emqx/emqx.git'
 case "$PROFILE" in
-    emqx-enterprise)
-        TAG_PREFIX='e'
-        ;;
     emqx)
         TAG_PREFIX='v'
         ;;
@@ -37,9 +34,7 @@ esac
 
 ## possible tags:
 ##  v4.3.11
-##  e4.3.11
 ##  rel-v4.4.3
-##  rel-e4.4.3
 PREV_TAG="${PREV_TAG:-$(env PREV_TAG_MATCH_PATTERN="[${TAG_PREFIX}|rel-]*" ./scripts/find-prev-rel-tag.sh)}"
 
 shift 1

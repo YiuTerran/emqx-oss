@@ -7,12 +7,12 @@ cd -P -- "$(dirname -- "$0")/../.."
 source ./env.sh
 
 PROFILE="${PROFILE:-emqx}"
+if [ "$PROFILE" != 'emqx' ]; then
+    echo "Unsupported profile: $PROFILE" >&2
+    exit 1
+fi
 DIR_NAME='examples'
 SCHEMA_MOD='emqx_conf_schema'
-if [ "${PROFILE}" = 'emqx-enterprise' ]; then
-    DIR_NAME='ee-examples'
-    SCHEMA_MOD='emqx_enterprise_schema'
-fi
 
 IFS=$'\n' read -r -d '' -a FILES < <(find "rel/config/${DIR_NAME}" -name "*.example" 2>/dev/null | sort && printf '\0')
 

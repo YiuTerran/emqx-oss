@@ -39,7 +39,6 @@
 start(_Type, _Args) ->
     ok = maybe_load_config(),
     _ = emqx_persistent_message:init(),
-    ok = maybe_start_quicer(),
     ok = emqx_bpapi:start(),
     ok = emqx_alarm_handler:load(),
     {ok, Sup} = emqx_sup:start_link(),
@@ -95,29 +94,6 @@ maybe_start_listeners() ->
         false ->
             ok
     end.
-
-maybe_start_quicer() ->
-    case is_quicer_app_present() andalso is_quic_listener_configured() of
-        true ->
-            {ok, _} = application:ensure_all_started(quicer),
-            ok;
-        false ->
-            ok
-    end.
-
-is_quicer_app_present() ->
-    case application:load(quicer) of
-        ok ->
-            true;
-        {error, {already_loaded, _}} ->
-            true;
-        _ ->
-            ?SLOG(info, #{msg => "quicer_app_not_found"}),
-            false
-    end.
-
-is_quic_listener_configured() ->
-    maps:is_key(quic, emqx:get_config([listeners])).
 
 get_description() -> emqx_release:description().
 
