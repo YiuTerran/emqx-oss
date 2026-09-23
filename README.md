@@ -1,113 +1,38 @@
-English | [简体中文](./README-CN.md) | [Русский](./README-RU.md)
+# EMQX 5.8.9 社区版 Fork
 
-# EMQX
+本仓库基于 EMQX `v5.8.9` 社区版 fork，保留 5.8.9 版本基线，并针对社区版修复问题、清理不适用的功能和构建入口。本仓库的修改不会出现在上游 EMQX 发布包中。
 
-This fork is based on the Apache 2.0 EMQX 5.8.9 Community Edition. It includes
-session registry stale-record cleanup and the Apache-licensed esockd file-limit
-fix. BSL-licensed application directories and Enterprise build profiles have
-been removed. LDAP authentication and MQTT over QUIC are unavailable in this fork. Build the fork
-from this source tree with the `emqx` profile; upstream `latest` images do not
-contain these fork changes.
+## 本仓库的修改
 
-[![GitHub Release](https://img.shields.io/github/release/emqx/emqx?color=brightgreen&label=Release)](https://github.com/emqx/emqx/releases)
-[![Docker Pulls](https://img.shields.io/docker/pulls/emqx/emqx?label=Docker%20Pulls)](https://hub.docker.com/r/emqx/emqx)
-[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/emqx/emqx?label=OpenSSF%20Scorecard&style=flat)](https://securityscorecards.dev/viewer/?uri=github.com/emqx/emqx)
-[![Slack](https://img.shields.io/badge/Slack-EMQ-39AE85?logo=slack)](https://slack-invite.emqx.io/)
-[![Discord](https://img.shields.io/discord/931086341838622751?label=Discord&logo=discord)](https://discord.gg/xYGf3fQnES)
-[![X](https://img.shields.io/badge/Follow-EMQ-1DA1F2?logo=x)](https://x.com/EMQTech)
-[![YouTube](https://img.shields.io/badge/Subscribe-EMQ-FF0000?logo=youtube)](https://www.youtube.com/channel/UC5FjR77ErAxvZENEWzQaO5Q)
+- **会话注册表：**清理接管、踢除后已确认失效的记录，并在 core 节点周期扫描死亡的本地 PID 和已退出集群节点的记录；保留仍属集群但暂时停机的节点记录及原有历史记录语义。
+- **连接上限：**将 esockd 固定到其 Apache 2.0 仓库的[修复提交 `a638fcd78a`](https://github.com/emqx/esockd/commit/a638fcd78a5fd3898b43d50eb55d734f78d884f5)，修复多 pollset 环境下连接上限误判。
+- **社区版清理：**移除含 BSL 许可的应用目录、企业版构建入口和发布任务，构建与 CI 使用社区版配置。LDAP 认证随相关目录移除。
+- **QUIC 清理：**移除 quicer 依赖、MQTT over QUIC 监听器入口和相关构建配置。本 fork 不提供 MQTT over QUIC。
 
+## 从源码构建
 
-EMQX is the world's most scalable open-source [MQTT broker](https://www.emqx.com/en/blog/the-ultimate-guide-to-mqtt-broker-comparison) with a high performance that connects 100M+ IoT devices in 1 cluster, while maintaining 1M message per second throughput and sub-millisecond latency.
-
-EMQX supports multiple open standard protocols like MQTT, HTTP, and WebSocket. It’s 100% compliant with MQTT 5.0 and 3.x standard, and secures bi-directional communication with MQTT over TLS/SSL and various authentication mechanisms.
-
-With the built-in powerful SQL-based [rules engine](https://www.emqx.com/en/solutions/iot-rule-engine), EMQX can extract, filter, enrich and transform IoT data in real-time. In addition, it ensures high availability and horizontal scalability with a masterless distributed architecture, and provides ops-friendly user experience and great observability.
-
-EMQX boasts more than 20K+ enterprise users across 50+ countries and regions, connecting 100M+ IoT devices worldwide, and is trusted by over 400 customers in mission-critical scenarios of IoT, IIoT, connected vehicles, and more, including over 70 Fortune 500 companies like HPE, VMware, Verifone, SAIC Volkswagen, and Ericsson.
-
-For more information, please visit [EMQX homepage](https://www.emqx.com/en).
-
-## Get Started
-
-#### Run EMQX in the Cloud
-
-The simplest way to set up EMQX is to create a managed deployment with EMQX Cloud. You can [try EMQX Cloud for free](https://www.emqx.com/en/signup?utm_source=github.com&utm_medium=referral&utm_campaign=emqx-readme-to-cloud&continue=https://cloud-intl.emqx.com/console/deployments/0?oper=new), no credit card required.
-
-#### Run EMQX using Docker
-
-```
-docker run -d --name emqx -p 1883:1883 -p 8083:8083 -p 8084:8084 -p 8883:8883 -p 18083:18083 emqx/emqx:latest
-```
-
-Next, please follow the [Install EMQX Using Docker](https://docs.emqx.com/en/emqx/latest/deploy/install-docker-ce.html) guide for further instructions.
-
-#### Run EMQX cluster on Kubernetes
-
-Please consult official [EMQX Operator](https://docs.emqx.com/en/emqx-operator/latest/getting-started/getting-started.html) documentation for details.
-
-#### Run EMQX on macOS
-
-EMQX is available as core [Homebrew](https://brew.sh/) package.
-
-```
-brew install emqx
-emqx start
-```
-
-#### More installation options
-
-If you prefer to install and manage EMQX yourself, you can download the latest version from [the official site](https://www.emqx.com/en/downloads-and-install/broker).
-
-For more installation options, see the [EMQX installation documentation](https://docs.emqx.com/en/emqx/latest/deploy/install-open-source.html).
-
-## Documentation
-
-The EMQX documentation is available at [docs.emqx.com/en/emqx/latest](https://docs.emqx.com/en/emqx/latest/).
-
-The EMQX Cloud documentation is available at [docs.emqx.com/en/cloud/latest](https://docs.emqx.com/en/cloud/latest/).
-
-## Contributing
-
-Please see our [contributing guide](./CONTRIBUTING.md).
-
-For more organised improvement proposals, you can send pull requests to [EIP](https://github.com/emqx/eip).
-
-## Get Involved
-
-- Follow [@EMQTech on Twitter](https://twitter.com/EMQTech).
-- Join our [Slack](https://slack-invite.emqx.io/).
-- If you have a specific question, check out our [discussion forums](https://github.com/emqx/emqx/discussions).
-- For general discussions, join us on the [official Discord](https://discord.gg/xYGf3fQnES) team.
-- Keep updated on [EMQX YouTube](https://www.youtube.com/channel/UC5FjR77ErAxvZENEWzQaO5Q) by subscribing.
-
-## Resources
-
-- [MQTT client programming](https://www.emqx.com/en/blog/category/mqtt-programming)
-
-  A series of blogs to help developers get started quickly with MQTT in PHP, Node.js, Python, Golang, and other programming languages.
-
-- [MQTT SDKs](https://www.emqx.com/en/mqtt-client-sdk)
-
-  We have selected popular MQTT client SDKs in various programming languages and provided code examples to help you quickly understand the use of MQTT clients.
-
-- [MQTTX](https://mqttx.app/)
-
-  An elegant cross-platform MQTT 5.0 client tool that provides desktop, command line, and web to help you develop and debug MQTT services and applications faster.
-
-- [Internet of Vehicles](https://www.emqx.com/en/blog/category/internet-of-vehicles)
-
-  Build a reliable, efficient, and industry-specific IoV platform based on EMQ's practical experience, from theoretical knowledge such as protocol selection to practical operations like platform architecture design.
-
-## Build From Source
-
-This fork targets EMQX 5.8.9. Use OTP 26 and build from this repository's root:
+使用 Erlang/OTP 26，在本仓库根目录执行：
 
 ```bash
 make emqx-rel
 _build/emqx/rel/emqx/bin/emqx console
 ```
 
-## License
+在 macOS 上，旧版捆绑 Snappy 的测试代码可能无法通过新版 Apple Clang 编译。可安装 Homebrew 的 Snappy/LZ4，并让 RocksDB 使用这两个库：
 
-See [LICENSE](./LICENSE).
+```bash
+brew install snappy lz4
+ERLANG_ROCKSDB_OPTS="-DWITH_SNAPPY=ON -DWITH_LZ4=ON -DCMAKE_PREFIX_PATH=$(brew --prefix)" \
+  BUILD_WITHOUT_JQ=1 mise exec erlang@26.2.5.21 -- make emqx-rel
+```
+
+仓库的 `.tool-versions` 固定 OTP `26.2.5.14-1`；上例使用已在本机安装的 `26.2.5.21`。`BUILD_WITHOUT_JQ=1` 仅跳过 JQ 原生依赖，**不会跳过 RocksDB**。按上例生成的 macOS RocksDB NIF 动态链接 Homebrew 的 Snappy/LZ4，复制构建结果到其他机器时需确保目标机器也有这些库。
+
+## 项目文档
+
+- [贡献指南](./CONTRIBUTING.md)
+- [插件说明](./PLUGIN.md)
+- [安全漏洞私密报告](./SECURITY.md)
+- [源码许可说明](./LICENSE)
+
+本仓库的源码许可以 [LICENSE](./LICENSE) 及各文件声明为准。Apache 2.0 许可文本见 [APL.txt](./APL.txt)。

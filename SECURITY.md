@@ -1,40 +1,11 @@
-# Security Policy
+# 安全报告
 
-## Supported Versions
+本文适用于 [YiuTerran/emqx-oss](https://github.com/YiuTerran/emqx-oss) 的 EMQX 5.8.9 社区版 fork，不代表上游 EMQX 的安全支持政策，也不对其他版本作支持承诺。
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :white_check_mark: |
-| 4.4.x   | :white_check_mark: |
-| < 4.4   | :x:                |
+## 私密提交漏洞
 
-## Qualifying Vulnerabilities
+请前往本仓库的 [GitHub 安全公告页面](https://github.com/YiuTerran/emqx-oss/security/advisories)，点击 **Report a vulnerability** 私密提交报告。不要在公开 Issue、讨论区或 Pull Request 中披露尚未修复的漏洞细节。
 
-Any design or implementation issue that substantially affects the confidentiality or integrity of user data is likely to be in scope for the program. Common examples including:
+报告请尽量包括受影响的提交或构建版本、影响范围、复现步骤及必要的最小示例。测试仅应针对你有权使用的环境，避免访问他人数据或干扰服务。
 
-* Cross-site scripting
-* Cross-site request forgery
-* Mixed-content scripts
-* Authentication or authorization flaws
-* Server-side code execution bugs
-
-Out of concern for the availability of our services to all users, please do not attempt to carry out DoS attacks, leverage black hat SEO techniques, spam people, brute force authentication, or do other similarly questionable things. We also discourage the use of any vulnerability testing tools that automatically generate very significant volumes of traffic.
-
-## Non-qualifying Vulnerabilities
-
-Depending on their impacts, some of the reported issues may not qualify.
-Although we review them on a case-by-case basis, here are some of the issues that typically do not earn a monetary reward:
-
-* Bugs requiring exceedingly unlikely user interaction Brute forcing
-* User enumeration
-* Non security related bugs
-* Abuse
-
-## Reporting a Vulnerability
-
-1. When investigating a vulnerability, please, only ever target your own accounts. Never attempt to access anyone else's data and do not engage in any activity that would be disruptive or damaging to other users.
-2. In the case the same vulnerability is present on multiple products, please combine and send one report.
-3. If you have found a vulnerability, please contact us at security@emqx.io.
-4. Note that we are only able to answer technical vulnerability reports. Duplicate reports will not be rewarded, first report on the specific vulnerability will be rewarded.
-5. The report should include steps in plain text how to reproduce the vulnerability (not only video or images).
+本仓库不沿用上游安全邮箱和漏洞奖励政策；此文档不承诺奖励或固定响应时限。
