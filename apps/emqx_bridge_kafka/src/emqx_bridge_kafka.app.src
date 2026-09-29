@@ -1,0 +1,25 @@
+{application, emqx_bridge_kafka, [
+    {description, "EMQX Kafka Producer Connector"},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        emqx_resource,
+        telemetry,
+        wolff,
+        kafka_protocol,
+        brod_gssapi,
+        snappyer
+    ]},
+    {env, [
+        {emqx_action_info_modules, [
+            emqx_bridge_kafka_producer_action_info
+        ]},
+        {emqx_connector_info_modules, [
+            emqx_bridge_kafka_producer_connector_info
+        ]}
+    ]},
+    {modules, []},
+    {links, []}
+]}.

@@ -103,8 +103,6 @@ hard_coded_action_info_modules_ee() ->
         emqx_bridge_hstreamdb_action_info,
         emqx_bridge_influxdb_action_info,
         emqx_bridge_iotdb_action_info,
-        emqx_bridge_kafka_consumer_action_info,
-        emqx_bridge_kafka_producer_action_info,
         emqx_bridge_kinesis_action_info,
         emqx_bridge_matrix_action_info,
         emqx_bridge_mongodb_action_info,
@@ -131,7 +129,8 @@ hard_coded_action_info_modules_ee() ->
 hard_coded_action_info_modules_common() ->
     [
         emqx_bridge_http_action_info,
-        emqx_bridge_mqtt_pubsub_action_info
+        emqx_bridge_mqtt_pubsub_action_info,
+        emqx_bridge_kafka_producer_action_info
     ].
 
 %% This exists so that it can be mocked for test cases

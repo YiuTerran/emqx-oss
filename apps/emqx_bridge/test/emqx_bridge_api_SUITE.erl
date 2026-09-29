@@ -1401,8 +1401,7 @@ t_cluster_later_join_metrics(Config) ->
             ok = erpc:call(OtherNode, ekka, join, [PrimaryNode]),
             %% Hack / workaround for the fact that `emqx_machine_boot' doesn't restart the
             %% applications, in particular `emqx_conf' doesn't restart and synchronize the
-            %% transaction id.  It's also unclear at the moment why the equivalent test in
-            %% `emqx_bridge_v2_api_SUITE' doesn't need this hack.
+            %% transaction id.
             ok = erpc:call(OtherNode, application, stop, [emqx_conf]),
             ok = erpc:call(OtherNode, application, start, [emqx_conf]),
             ct:print("node joined cluster"),

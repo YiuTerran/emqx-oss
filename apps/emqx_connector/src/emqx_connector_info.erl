@@ -91,8 +91,6 @@ hard_coded_connector_info_modules_ee() ->
         emqx_bridge_hstreamdb_connector_info,
         emqx_bridge_influxdb_connector_info,
         emqx_bridge_iotdb_connector_info,
-        emqx_bridge_kafka_consumer_connector_info,
-        emqx_bridge_kafka_producer_connector_info,
         emqx_bridge_kinesis_connector_info,
         emqx_bridge_matrix_connector_info,
         emqx_bridge_mongodb_connector_info,
@@ -121,7 +119,8 @@ hard_coded_connector_info_modules_ee() ->
 hard_coded_connector_info_modules_common() ->
     [
         emqx_bridge_http_connector_info,
-        emqx_bridge_mqtt_pubsub_connector_info
+        emqx_bridge_mqtt_pubsub_connector_info,
+        emqx_bridge_kafka_producer_connector_info
     ].
 
 %% This exists so that it can be mocked for test cases

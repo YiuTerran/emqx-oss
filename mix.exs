@@ -159,6 +159,11 @@ defmodule EMQXUmbrella.MixProject do
       # in conflict by erlavro
       common_dep(:snappyer),
       common_dep(:crc32cer),
+      # Kafka producer connector (Apache-2.0)
+      common_dep(:wolff),
+      common_dep(:kafka_protocol),
+      common_dep(:brod_gssapi),
+      common_dep(:brod),
       common_dep(:unicode_util_compat)
     ]
   end
@@ -186,7 +191,7 @@ defmodule EMQXUmbrella.MixProject do
     do: {:esockd, github: "emqx/esockd", ref: "a638fcd78a5fd3898b43d50eb55d734f78d884f5", override: true}
   def common_dep(:gproc), do: {:gproc, "1.0.0", override: true}
   def common_dep(:hocon), do: {:hocon, github: "emqx/hocon", tag: "0.44.0", override: true}
-  def common_dep(:lc), do: {:lc, github: "emqx/lc", tag: "0.3.4", override: true}
+  def common_dep(:lc), do: {:lc, github: "emqx/lc", tag: "0.3.5", override: true}
   # in conflict by ehttpc and emqtt
   def common_dep(:gun), do: {:gun, "2.1.0", override: true}
   # in conflict by cowboy_swagger and cowboy
@@ -205,7 +210,7 @@ defmodule EMQXUmbrella.MixProject do
   def common_dep(:cowboy), do: {:cowboy, github: "emqx/cowboy", tag: "2.9.2", override: true}
   def common_dep(:jsone), do: {:jsone, github: "emqx/jsone", tag: "1.7.1", override: true}
   def common_dep(:ecpool), do: {:ecpool, github: "emqx/ecpool", tag: "0.6.2", override: true}
-  def common_dep(:replayq), do: {:replayq, github: "emqx/replayq", tag: "0.4.1", override: true}
+  def common_dep(:replayq), do: {:replayq, github: "emqx/replayq", tag: "0.5.0", override: true}
   def common_dep(:jsx), do: {:jsx, github: "talentdeficit/jsx", tag: "v3.1.0", override: true}
   # in conflict by emqtt and hocon
   def common_dep(:getopt), do: {:getopt, "1.0.2", override: true}
@@ -507,6 +512,7 @@ defmodule EMQXUmbrella.MixProject do
             :emqx_exhook,
             :emqx_bridge,
             :emqx_bridge_mqtt,
+            :emqx_bridge_kafka,
             :emqx_modules,
             :emqx_management,
             :emqx_retainer,

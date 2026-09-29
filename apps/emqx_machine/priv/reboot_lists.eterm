@@ -65,6 +65,7 @@
             emqx_bridge,
             emqx_bridge_mqtt,
             emqx_bridge_http,
+            emqx_bridge_kafka,
             emqx_rule_engine,
             emqx_modules,
             emqx_management,

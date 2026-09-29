@@ -58,8 +58,7 @@
     (TYPE) =:= <<"mqtt">>
 ).
 -define(IS_INGRESS_BRIDGE(TYPE),
-    (TYPE) =:= <<"kafka_consumer">> orelse
-        (TYPE) =:= <<"gcp_pubsub_consumer">> orelse
+    (TYPE) =:= <<"gcp_pubsub_consumer">> orelse
         ?IS_BI_DIR_BRIDGE(TYPE)
 ).
 

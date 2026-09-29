@@ -23,8 +23,6 @@ api_schemas(Method) ->
         %% bridge schema module.
         api_ref(emqx_bridge_gcp_pubsub, <<"gcp_pubsub">>, Method ++ "_producer"),
         api_ref(emqx_bridge_gcp_pubsub, <<"gcp_pubsub_consumer">>, Method ++ "_consumer"),
-        api_ref(emqx_bridge_kafka, <<"kafka_consumer">>, Method ++ "_consumer"),
-        api_ref(emqx_bridge_kafka, <<"kafka">>, Method ++ "_producer"),
         api_ref(emqx_bridge_cassandra, <<"cassandra">>, Method),
         api_ref(emqx_bridge_mysql, <<"mysql">>, Method),
         api_ref(emqx_bridge_pgsql, <<"pgsql">>, Method),
@@ -56,7 +54,6 @@ api_schemas(Method) ->
 
 schema_modules() ->
     [
-        emqx_bridge_kafka,
         emqx_bridge_cassandra,
         emqx_bridge_hstreamdb,
         emqx_bridge_gcp_pubsub,
@@ -99,8 +96,6 @@ registered_examples(Method) ->
 
 %% TODO: existing atom
 resource_type(Type) when is_binary(Type) -> resource_type(binary_to_atom(Type, utf8));
-resource_type(kafka_consumer) -> emqx_bridge_kafka_impl_consumer;
-resource_type(kafka_producer) -> emqx_bridge_kafka_impl_producer;
 resource_type(cassandra) -> emqx_bridge_cassandra_connector;
 resource_type(hstreamdb) -> emqx_bridge_hstreamdb_connector;
 resource_type(gcp_pubsub) -> emqx_bridge_gcp_pubsub_impl_producer;
@@ -217,7 +212,7 @@ fields(bridges) ->
                     required => false
                 }
             )}
-    ] ++ kafka_structs() ++ pulsar_structs() ++ gcp_pubsub_structs() ++ mongodb_structs() ++
+    ] ++ pulsar_structs() ++ gcp_pubsub_structs() ++ mongodb_structs() ++
         influxdb_structs() ++
         redis_structs() ++
         pgsql_structs() ++ clickhouse_structs() ++ sqlserver_structs() ++ rabbitmq_structs() ++
@@ -234,24 +229,6 @@ mongodb_structs() ->
                 }
             )}
      || Type <- [mongodb_rs, mongodb_sharded, mongodb_single]
-    ].
-
-kafka_structs() ->
-    [
-        {kafka,
-            mk(
-                hoconsc:map(name, ref(emqx_bridge_kafka, kafka_producer)),
-                #{
-                    desc => <<"Kafka Producer Bridge Config">>,
-                    required => false,
-                    converter => fun kafka_producer_converter/2
-                }
-            )},
-        {kafka_consumer,
-            mk(
-                hoconsc:map(name, ref(emqx_bridge_kafka, kafka_consumer)),
-                #{desc => <<"Kafka Consumer Bridge Config">>, required => false}
-            )}
     ].
 
 pulsar_structs() ->
@@ -375,16 +352,6 @@ sqlserver_structs() ->
                 }
             )}
     ].
-
-kafka_producer_converter(undefined, _) ->
-    undefined;
-kafka_producer_converter(Map, Opts) ->
-    maps:map(
-        fun(_Name, Config) ->
-            emqx_bridge_kafka:kafka_producer_converter(Config, Opts)
-        end,
-        Map
-    ).
 
 azure_event_hub_producer_converter(undefined, _) ->
     undefined;

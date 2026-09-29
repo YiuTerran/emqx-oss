@@ -248,12 +248,6 @@ kafka_header_value_encode_mode.desc:
 kafka_header_value_encode_mode.label:
 """Headers value encode mode"""
 
-metadata_request_timeout.desc:
-"""Maximum wait time when fetching topic metadata."""
-
-metadata_request_timeout.label:
-"""Metadata Request Timeout"""
-
 desc_type.desc:
 """The Action Type"""
 
@@ -464,5 +458,18 @@ producer_health_check_topic.desc:
 """Topic name used exclusively for more accurate connector health checks."""
 producer_health_check_topic.label:
 """Connector health check topic"""
+
+request_timeout.desc:
+"""Maximum duration to wait for a reply from Kafka for a pending request.
+When exceeded, the connection is considered stale and is re-established.
+Note: if set too small, Kafka may have ingested a produce request while the acknowledgement is delayed; EMQX then resends the already-accepted batch after reconnecting, which can result in duplicates and an overwhelming data volume for downstream consumers.
+This timeout is also used for metadata requests, as the underlying Kafka client does not take a separate metadata request timeout."""
+
+request_timeout.label: "Request Timeout"
+
+allow_auto_topic_creation.desc:
+"""Set to true to allow automatic Kafka topic creation with metadata fetch request."""
+allow_auto_topic_creation.label:
+"""Allow Auto Topic Creation"""
 
 }
