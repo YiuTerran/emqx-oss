@@ -37,7 +37,10 @@ if [ -d "$DASHBOARD_PATH/www" ] && [ "$(version)" = "$VERSION" ]; then
 fi
 
 echo "Downloading dashboard from: $DIRECT_DOWNLOAD_URL"
-curl -L --silent --show-error \
+# --fail is required: without it curl exits 0 on HTTP 404 and silently writes
+# GitHub's "Not Found" HTML page into the .zip, so the failure only surfaces
+# later as a confusing `unzip: cannot find zipfile directory` error.
+curl -L --fail --retry 3 --retry-delay 5 --silent --show-error \
      --header "Accept: application/octet-stream" \
      --output "${RELEASE_ASSET_FILE}" \
      "$DIRECT_DOWNLOAD_URL"

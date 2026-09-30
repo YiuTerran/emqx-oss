@@ -1,0 +1,207 @@
+name: Release Docker image
+
+# 推 v* tag 时构建 linux/amd64 + linux/arm64，并推送到 Docker Hub。
+#
+# 凭据来自 `deploy` 环境（Settings -> Environments -> deploy）：
+#   secrets.DOCKERHUB_USERNAME
+#   secrets.DOCKERHUB_TOKEN
+#   vars.DOCKERHUB_IMAGE          例如 tryao/emqx-oss
+#
+# 为什么用原生 arm64 runner 而不是 QEMU：这个镜像在 Dockerfile 里从源码编译
+# EMQX（deploy/docker/Dockerfile -> make emqx-tgz），QEMU 模拟下会慢到接近
+# GitHub 的 6 小时上限。public repo 的 arm64 runner 是免费的。
+#
+# tag 必须与 apps/emqx/include/emqx_release.hrl 里的 EMQX_RELEASE_CE 完全一致，
+# pkg-vsn.sh 会强制校验（不一致直接报错），precheck 把它提前到几秒内失败。
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '要发布的镜像 tag，例如 5.8.9-rc1（带 - 后缀不会打 latest）'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-docker-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PROFILE: emqx
+
+jobs:
+  # 把「tag 写错」和「dashboard asset 还没发布」这两类问题提前到几秒内失败，
+  # 而不是等 docker build 跑了十几分钟才在容器里以 unzip 报错收场。
+  precheck:
+    name: Precheck
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      latest: ${{ steps.version.outputs.latest }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve image version
+        id: version
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RAW='${{ inputs.version }}'
+          else
+            RAW="${GITHUB_REF_NAME}"
+          fi
+          VERSION="${RAW#v}"
+          if [ -z "$VERSION" ]; then
+            echo "::error::无法确定版本号"
+            exit 1
+          fi
+          # 带预发布后缀（5.8.9-rc1）的不移动 latest
+          case "$VERSION" in
+            *-*) LATEST=false ;;
+            *)   LATEST=true  ;;
+          esac
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "源 tag: '$RAW' -> version=$VERSION, latest=$LATEST"
+
+      - name: Verify tag matches emqx_release.hrl
+        run: |
+          set -euo pipefail
+          RELEASE="$(grep -E 'define.+EMQX_RELEASE_CE' apps/emqx/include/emqx_release.hrl | cut -d '"' -f2)"
+          VERSION='${{ steps.version.outputs.version }}'
+          echo "emqx_release.hrl: $RELEASE"
+          echo "镜像版本:         $VERSION"
+          if [ "$RELEASE" != "$VERSION" ]; then
+            echo "::error::版本不一致：tag 是 '$VERSION'，但 apps/emqx/include/emqx_release.hrl 里是 '$RELEASE'。"
+            echo "::error::pkg-vsn.sh 遇到这种情况会直接报 'ERROR: Tagged ..., but ... in emqx_release.hrl'。"
+            echo "::error::请改 tag 名，或先改 emqx_release.hrl 里的 EMQX_RELEASE_CE。"
+            exit 1
+          fi
+          echo "版本一致 OK"
+
+      - name: Verify dashboard release asset exists
+        run: |
+          set -euo pipefail
+          DASH_REPO="$(sed -nE "s/^DASHBOARD_REPO='([^']+)'.*/\1/p" scripts/get-dashboard.sh)"
+          DASH_VER="$(sed -nE 's/^export EMQX_DASHBOARD_VERSION \?= (.*)$/\1/p' Makefile)"
+          URL="https://github.com/${DASH_REPO}/releases/download/${DASH_VER}/emqx-dashboard-${DASH_VER}.zip"
+          echo "dashboard 来源:  ${DASH_REPO} @ ${DASH_VER}"
+          echo "检查:            ${URL}"
+          if ! curl -fsSLI -o /dev/null "$URL"; then
+            echo "::error::dashboard asset 不存在：${URL}"
+            echo "::error::请先给 ${DASH_REPO} 推 ${DASH_VER} tag，等它的 release workflow 发布 asset 后再重试。"
+            exit 1
+          fi
+          echo "dashboard asset OK"
+
+  build:
+    name: Build ${{ matrix.arch }}
+    needs: [precheck]
+    runs-on: ${{ matrix.runner }}
+    environment: deploy
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # pkg-vsn.sh 靠容器里的 git describe 读 tag 推导 PKG_VSN，
+          # 浅克隆会让版本退化成 5.8.9-g<sha> 这种形式。
+          fetch-depth: 0
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.platform }}
+        env:
+          DOCKER_REGISTRY: docker.io
+          DOCKER_PLATFORMS: ${{ matrix.platform }}
+          DOCKER_PUSH: 'true'
+          # 多平台不能 --load；make_docker 里 DOCKER_LOAD 默认是 true，必须显式关掉
+          DOCKER_LOAD: 'false'
+          # 覆盖默认的 <DOCKER_ORG>/<PROFILE>，因为镜像名是 emqx-oss 而不是 emqx
+          EMQX_IMAGE_TAG: ${{ vars.DOCKERHUB_IMAGE }}:${{ needs.precheck.outputs.version }}-${{ matrix.arch }}
+        run: make emqx-docker
+
+  merge:
+    name: Merge manifest and smoke test
+    needs: [precheck, build]
+    runs-on: ubuntu-24.04
+    environment: deploy
+    steps:
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create multi-arch manifest
+        env:
+          IMAGE: ${{ vars.DOCKERHUB_IMAGE }}
+          VERSION: ${{ needs.precheck.outputs.version }}
+          LATEST: ${{ needs.precheck.outputs.latest }}
+        run: |
+          set -euo pipefail
+          TAGS=(-t "${IMAGE}:${VERSION}")
+          if [ "${LATEST}" = "true" ]; then
+            TAGS+=(-t "${IMAGE}:latest")
+          fi
+          docker buildx imagetools create "${TAGS[@]}" \
+            "${IMAGE}:${VERSION}-amd64" \
+            "${IMAGE}:${VERSION}-arm64"
+          echo "=== ${IMAGE}:${VERSION} ==="
+          docker buildx imagetools inspect "${IMAGE}:${VERSION}"
+
+      # 最终确认镜像里真的是 fork 的 dashboard（而不是官方那份 / 空的）
+      - name: Smoke test - dashboard Kafka entry present in image
+        env:
+          IMAGE: ${{ vars.DOCKERHUB_IMAGE }}
+          VERSION: ${{ needs.precheck.outputs.version }}
+        run: |
+          set -euo pipefail
+          docker pull --platform linux/amd64 "${IMAGE}:${VERSION}"
+          docker run --rm --entrypoint sh "${IMAGE}:${VERSION}" -c '
+            set -e
+            d="$(ls -d /opt/emqx/lib/emqx_dashboard-*/priv/www)"
+            echo "dashboard dir: $d"
+            sed "s/^/  /" "$d/version"
+            ls "$d/static/img/" | grep -i kafka_producer
+            grep -q "Kafka 生产者" "$d"/static/js/app*.js
+            echo "smoke test OK"
+          '
+
+      - name: Remove per-arch staging tags
+        env:
+          IMAGE: ${{ vars.DOCKERHUB_IMAGE }}
+          VERSION: ${{ needs.precheck.outputs.version }}
+          DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          DH_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          NS="${IMAGE%%/*}"
+          REPO="${IMAGE##*/}"
+          for a in amd64 arm64; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' -u "${DH_USER}:${DH_TOKEN}" -X DELETE \
+              "https://hub.docker.com/v2/repositories/${NS}/${REPO}/tags/${VERSION}-${a}/")"
+            echo "删除 staging tag ${VERSION}-${a}: HTTP ${code}"
+          done
