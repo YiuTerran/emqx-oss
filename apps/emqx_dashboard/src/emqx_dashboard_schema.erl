@@ -292,17 +292,5 @@ convert_ssl_layout(Conf = #{}, _Opts) ->
     Conf1 = maps:without(Keys, Conf),
     Conf1#{<<"ssl_options">> => SslOpts}.
 
--if(?EMQX_RELEASE_EDITION == ee).
-sso_fields() ->
-    [
-        {sso,
-            ?HOCON(
-                ?R_REF(emqx_dashboard_sso_schema, sso),
-                #{required => {false, recursively}}
-            )}
-    ].
-
--else.
 sso_fields() ->
     [].
--endif.

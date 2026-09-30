@@ -48,9 +48,7 @@
     setting/2,
     stats/2,
     auth/2,
-    data_integration/2,
-    schema_validation/2,
-    message_transformation/2
+    data_integration/2
 ]).
 
 -export([lookup_from_local_nodes/3]).
@@ -70,20 +68,7 @@ paths() ->
         "/prometheus/auth",
         "/prometheus/stats",
         "/prometheus/data_integration"
-    ] ++ paths_ee().
-
--if(?EMQX_RELEASE_EDITION == ee).
-paths_ee() ->
-    [
-        "/prometheus/schema_validation",
-        "/prometheus/message_transformation"
     ].
-%% ELSE if(?EMQX_RELEASE_EDITION == ee).
--else.
-paths_ee() ->
-    [].
-%% END if(?EMQX_RELEASE_EDITION == ee).
--endif.
 
 schema("/prometheus") ->
     #{
@@ -136,32 +121,6 @@ schema("/prometheus/data_integration") ->
         get =>
             #{
                 description => ?DESC(get_prom_data_integration_data),
-                tags => ?TAGS,
-                parameters => [ref(mode)],
-                security => security(),
-                responses =>
-                    #{200 => prometheus_data_schema()}
-            }
-    };
-schema("/prometheus/schema_validation") ->
-    #{
-        'operationId' => schema_validation,
-        get =>
-            #{
-                description => ?DESC(get_prom_schema_validation),
-                tags => ?TAGS,
-                parameters => [ref(mode)],
-                security => security(),
-                responses =>
-                    #{200 => prometheus_data_schema()}
-            }
-    };
-schema("/prometheus/message_transformation") ->
-    #{
-        'operationId' => message_transformation,
-        get =>
-            #{
-                description => ?DESC(get_prom_message_transformation),
                 tags => ?TAGS,
                 parameters => [ref(mode)],
                 security => security(),
@@ -239,12 +198,6 @@ auth(get, #{headers := Headers, query_string := Qs}) ->
 
 data_integration(get, #{headers := Headers, query_string := Qs}) ->
     collect(emqx_prometheus_data_integration, collect_opts(Headers, Qs)).
-
-schema_validation(get, #{headers := Headers, query_string := Qs}) ->
-    collect(emqx_prometheus_schema_validation, collect_opts(Headers, Qs)).
-
-message_transformation(get, #{headers := Headers, query_string := Qs}) ->
-    collect(emqx_prometheus_message_transformation, collect_opts(Headers, Qs)).
 
 %%--------------------------------------------------------------------
 %% Internal funcs

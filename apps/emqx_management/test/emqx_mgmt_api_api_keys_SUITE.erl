@@ -22,17 +22,7 @@
 -include_lib("common_test/include/ct.hrl").
 -include_lib("emqx_dashboard/include/emqx_dashboard_rbac.hrl").
 
--if(?EMQX_RELEASE_EDITION == ee).
--define(EE_CASES, [
-    t_ee_create,
-    t_ee_update,
-    t_ee_authorize_viewer,
-    t_ee_authorize_admin,
-    t_ee_authorize_publisher
-]).
--else.
 -define(EE_CASES, []).
--endif.
 
 -define(APP, emqx_app).
 
@@ -208,47 +198,6 @@ t_bootstrap_file_dup_override(_) ->
 
     ok.
 
--if(?EMQX_RELEASE_EDITION == ee).
-t_bootstrap_file_with_role(_) ->
-    Search = fun(Name) ->
-        lists:search(
-            fun(#{api_key := AppName}) ->
-                AppName =:= Name
-            end,
-            emqx_mgmt_auth:list()
-        )
-    end,
-
-    Bin = <<"role-1:role-1:viewer\nrole-2:role-2:administrator\nrole-3:role-3">>,
-    File = "./bootstrap_api_keys.txt",
-    ok = file:write_file(File, Bin),
-    update_file(File),
-
-    ?assertMatch(
-        {value, #{api_key := <<"role-1">>, role := <<"viewer">>}},
-        Search(<<"role-1">>)
-    ),
-
-    ?assertMatch(
-        {value, #{api_key := <<"role-2">>, role := <<"administrator">>}},
-        Search(<<"role-2">>)
-    ),
-
-    ?assertMatch(
-        {value, #{api_key := <<"role-3">>, role := <<"administrator">>}},
-        Search(<<"role-3">>)
-    ),
-
-    %% bad role
-    BadBin = <<"role-4:secret-11:bad\n">>,
-    ok = file:write_file(File, BadBin),
-    update_file(File),
-    ?assertEqual(
-        false,
-        Search(<<"role-4">>)
-    ),
-    ok.
--else.
 t_bootstrap_file_with_role(_) ->
     Search = fun(Name) ->
         lists:search(
@@ -292,7 +241,6 @@ t_bootstrap_file_with_role(_) ->
         Search(<<"role-4">>)
     ),
     ok.
--endif.
 
 auth_authorize(Path, Key, Secret) ->
     FakePath = erlang:list_to_binary(emqx_dashboard_swagger:relative_uri("/fake")),

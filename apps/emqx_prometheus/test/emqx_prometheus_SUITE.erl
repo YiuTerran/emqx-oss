@@ -90,10 +90,6 @@ init_per_group(new_config, Config) ->
         lists:flatten([
             %% coverage olp metrics
             {emqx, "overload_protection.enable = true"},
-            [
-                {emqx_license, "license.key = default"}
-             || emqx_release:edition() == ee
-            ],
             emqx_conf,
             emqx_connector,
             emqx_bridge_http,
@@ -110,10 +106,6 @@ init_per_group(legacy_config, Config) ->
     Apps = emqx_cth_suite:start(
         lists:flatten([
             {emqx, "overload_protection.enable = false"},
-            [
-                {emqx_license, "license.key = default"}
-             || emqx_release:edition() == ee
-            ],
             emqx_conf,
             emqx_connector,
             emqx_bridge_http,
@@ -159,16 +151,8 @@ conf_default() ->
 legacy_conf_default() ->
     ?LEGACY_CONF_DEFAULT.
 
--if(?EMQX_RELEASE_EDITION == ee).
-maybe_meck_license() ->
-    meck:new(emqx_license_checker, [non_strict, passthrough, no_link]),
-    meck:expect(emqx_license_checker, expiry_epoch, fun() -> 1859673600 end).
-maybe_unmeck_license() ->
-    meck:unload(emqx_license_checker).
--else.
 maybe_meck_license() -> ok.
 maybe_unmeck_license() -> ok.
--endif.
 %%--------------------------------------------------------------------
 %% Test cases
 %%--------------------------------------------------------------------

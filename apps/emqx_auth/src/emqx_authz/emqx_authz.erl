@@ -630,22 +630,6 @@ log_trace(Res, Type, Module, Username, Topic, PubSub) ->
             })
     end.
 
--if(?EMQX_RELEASE_EDITION == ee).
-format_result(error) ->
-    error;
-format_result(nomatch) ->
-    nomatch;
-format_result(ignore) ->
-    ignore;
-format_result({matched, ignore}) ->
-    matched_ignore;
-format_result({matched, allow}) ->
-    matched_allow;
-format_result({matched, deny}) ->
-    matched_deny.
--else.
--endif.
-
 get_enabled_authzs() ->
     lists:usort([Type || #{type := Type, enable := true} <- lookup()]).
 

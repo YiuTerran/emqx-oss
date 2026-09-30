@@ -40,7 +40,7 @@
 -export([upgrade_raw_conf/1]).
 -export([tr_prometheus_collectors/1]).
 
-%% internal exports for `emqx_enterprise_schema' only.
+%% internal exports for config upgrade and conversion helpers.
 -export([
     log_file_path_converter/2,
     fix_bad_log_path/1,
@@ -62,7 +62,7 @@
     emqx_authn_schema,
     emqx_authz_schema,
     emqx_auto_subscribe_schema,
-    {emqx_telemetry_schema, ce},
+    emqx_telemetry_schema,
     emqx_modules_schema,
     emqx_plugins_schema,
     emqx_dashboard_schema,
@@ -73,7 +73,6 @@
     emqx_psk_schema,
     emqx_limiter_schema,
     emqx_slow_subs_schema,
-    {emqx_otel_schema, ee},
     emqx_mgmt_api_key_schema
 ]).
 
@@ -192,18 +191,7 @@ validate_durable_sessions_strategy(Conf) ->
     end.
 
 common_apps() ->
-    Edition = emqx_release:edition(),
-    lists:filtermap(
-        fun
-            ({N, E}) ->
-                case E =:= Edition of
-                    true -> {true, N};
-                    false -> false
-                end;
-            (N) when is_atom(N) -> {true, N}
-        end,
-        ?MERGED_CONFIGS
-    ).
+    ?MERGED_CONFIGS.
 
 fields("cluster") ->
     [

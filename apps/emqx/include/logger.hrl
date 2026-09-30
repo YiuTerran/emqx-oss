@@ -96,34 +96,8 @@
     )
 end).
 
--ifdef(EMQX_RELEASE_EDITION).
-
--if(?EMQX_RELEASE_EDITION == ee).
-
--define(AUDIT(_LevelFun_, _MetaFun_), begin
-    case logger_config:get(logger, ?AUDIT_HANDLER) of
-        {error, {not_found, _}} ->
-            ok;
-        {ok, Handler = #{level := _AllowLevel_}} ->
-            _Level_ = _LevelFun_,
-            case logger:compare_levels(_AllowLevel_, _Level_) of
-                _R_ when _R_ == lt; _R_ == eq ->
-                    emqx_audit:log(_Level_, _MetaFun_, Handler);
-                _ ->
-                    ok
-            end
-    end
-end).
-
--else.
-%% Only for compile pass, ce edition will not call it
+%% Only for compile pass, the community edition will not call it
 -define(AUDIT(_L_, _M_), _ = {_L_, _M_}).
--endif.
-
--else.
-%% Only for compile pass, ce edition will not call it
--define(AUDIT(_L_, _M_), _ = {_L_, _M_}).
--endif.
 
 %% print to 'user' group leader
 -define(ULOG(Fmt, Args), io:format(user, Fmt, Args)).

@@ -22,13 +22,8 @@
 -include_lib("common_test/include/ct.hrl").
 
 all() ->
-    All = emqx_common_test_helpers:all(?MODULE),
-    case emqx_cth_suite:skip_if_oss() of
-        false ->
-            All;
-        _ ->
-            All -- [t_autocluster_leave]
-    end.
+    %% `t_autocluster_leave' requires the enterprise-only cluster features
+    emqx_common_test_helpers:all(?MODULE) -- [t_autocluster_leave].
 
 init_per_suite(Config) ->
     Apps = emqx_cth_suite:start(

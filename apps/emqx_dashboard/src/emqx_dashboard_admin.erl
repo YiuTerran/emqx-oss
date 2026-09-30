@@ -57,10 +57,6 @@
 
 -export([backup_tables/0]).
 
--if(?EMQX_RELEASE_EDITION == ee).
--export([add_sso_user/4, lookup_user/2]).
--endif.
-
 -type emqx_admin() :: #?ADMIN{}.
 
 -define(USERNAME_ALREADY_EXISTS_ERROR, <<"username_already_exists">>).
@@ -433,37 +429,6 @@ ensure_role(undefined) ->
 ensure_role(Role) when is_binary(Role) ->
     Role.
 
--if(?EMQX_RELEASE_EDITION == ee).
-legal_role(Role) ->
-    emqx_dashboard_rbac:valid_dashboard_role(Role).
-
-role(Data) ->
-    emqx_dashboard_rbac:role(Data).
-
-flatten_username(#{username := ?SSO_USERNAME(Backend, Name)} = Data) ->
-    Data#{
-        username := Name,
-        backend => Backend
-    };
-flatten_username(#{username := Username} = Data) when is_binary(Username) ->
-    Data#{backend => ?BACKEND_LOCAL}.
-
--spec add_sso_user(dashboard_sso_backend(), binary(), dashboard_user_role(), binary()) ->
-    {ok, map()} | {error, any()}.
-add_sso_user(Backend, Username0, Role, Desc) when is_binary(Username0) ->
-    case legal_role(Role) of
-        ok ->
-            Username = ?SSO_USERNAME(Backend, Username0),
-            do_add_user(Username, <<>>, Role, Desc);
-        {error, _} = Error ->
-            Error
-    end.
-
--spec lookup_user(dashboard_sso_backend(), binary()) -> [emqx_admin()].
-lookup_user(Backend, Username) when is_atom(Backend) ->
-    lookup_user(?SSO_USERNAME(Backend, Username)).
--else.
-
 -dialyzer({no_match, [add_user/4, update_user/3]}).
 
 legal_role(?ROLE_DEFAULT) ->
@@ -476,7 +441,6 @@ role(_) ->
 
 flatten_username(Data) ->
     Data.
--endif.
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").

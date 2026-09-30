@@ -741,23 +741,8 @@ aggregate_status([{Node, Plugins} | List], Acc) ->
         ),
     aggregate_status(List, NewAcc).
 
--if(?EMQX_RELEASE_EDITION == ee).
-format_plugin_avsc_and_i18n(NameVsn) ->
-    #{
-        avsc => try_read_file(fun() -> emqx_plugins:plugin_schema_json(NameVsn) end),
-        i18n => try_read_file(fun() -> emqx_plugins:plugin_i18n_json(NameVsn) end)
-    }.
-
-try_read_file(Fun) ->
-    case Fun() of
-        {ok, Json} -> Json;
-        _ -> null
-    end.
-
--else.
 format_plugin_avsc_and_i18n(_NameVsn) ->
     #{avsc => null, i18n => null}.
--endif.
 
 bin(A) when is_atom(A) -> atom_to_binary(A, utf8);
 bin(L) when is_list(L) -> list_to_binary(L);

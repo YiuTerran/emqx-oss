@@ -43,7 +43,6 @@
     prometheus_model_helpers,
     [
         create_mf/5,
-        gauge_metric/1,
         gauge_metrics/1,
         counter_metrics/1
     ]
@@ -516,9 +515,6 @@ emqx_collect(K = emqx_authentication_success, D) -> counter_metrics(?MG(K, D));
 emqx_collect(K = emqx_authentication_success_anonymous, D) -> counter_metrics(?MG(K, D));
 emqx_collect(K = emqx_authentication_failure, D) -> counter_metrics(?MG(K, D));
 %%--------------------------------------------------------------------
-%% License
-emqx_collect(K = emqx_license_expiry_at, D) -> gauge_metric(?MG(K, D));
-%%--------------------------------------------------------------------
 %% Certs
 emqx_collect(K = emqx_cert_expiry_at, D) -> gauge_metrics(?MG(K, D));
 %% Cluster RPC
@@ -920,29 +916,6 @@ emqx_metrics_olp_meta(false) ->
 %% License
 %%========================================
 
--if(?EMQX_RELEASE_EDITION == ee).
-
-maybe_license_add_collect_family(Callback, RawData) ->
-    ok = add_collect_family(Callback, license_metric_meta(), ?MG(license_data, RawData)),
-    ok.
-
-maybe_license_fetch_data() ->
-    #{license_data => license_data()}.
-
-maybe_license_collect_json_data(RawData) ->
-    #{license => ?MG(license_data, RawData)}.
-
-%% license
-license_metric_meta() ->
-    [
-        {emqx_license_expiry_at, gauge, undefined}
-    ].
-
-license_data() ->
-    #{emqx_license_expiry_at => emqx_license_checker:expiry_epoch()}.
-
--else.
-
 maybe_license_add_collect_family(_, _) ->
     ok.
 
@@ -951,8 +924,6 @@ maybe_license_fetch_data() ->
 
 maybe_license_collect_json_data(_RawData) ->
     #{}.
-
--endif.
 
 %%========================================
 %% Certs

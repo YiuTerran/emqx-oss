@@ -474,23 +474,6 @@ normalize_extra(Map) when is_map(Map) ->
 normalize_extra(Desc) ->
     #{desc => Desc, role => ?ROLE_API_DEFAULT}.
 
--if(?EMQX_RELEASE_EDITION == ee).
-check_rbac(Req, ApiKey, Role) ->
-    case emqx_dashboard_rbac:check_rbac(Req, ApiKey, Role) of
-        true ->
-            ok;
-        _ ->
-            {error, unauthorized_role}
-    end.
-
-format_app_extend(App) ->
-    App.
-
-valid_role(Role) ->
-    emqx_dashboard_rbac:valid_api_role(Role).
-
--else.
-
 check_rbac(_Req, _ApiKey, _Role) ->
     ok.
 
@@ -501,5 +484,3 @@ valid_role(?ROLE_API_DEFAULT) ->
     ok;
 valid_role(_) ->
     {error, <<"Role does not exist">>}.
-
--endif.

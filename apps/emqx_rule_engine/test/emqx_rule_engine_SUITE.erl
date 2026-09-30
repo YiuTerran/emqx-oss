@@ -168,49 +168,7 @@ init_per_suite(Config) ->
             emqx_conf,
             emqx_rule_engine,
             emqx_auth,
-            emqx_bridge,
-            [
-                {emqx_schema_validation, #{
-                    config => #{
-                        <<"schema_validation">> => #{
-                            <<"validations">> => [
-                                #{
-                                    <<"name">> => <<"v1">>,
-                                    <<"topics">> => [<<"sv/fail">>],
-                                    <<"strategy">> => <<"all_pass">>,
-                                    <<"failure_action">> => <<"drop">>,
-                                    <<"checks">> => [
-                                        #{
-                                            <<"type">> => <<"sql">>,
-                                            <<"sql">> => <<"select 1 where false">>
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    }
-                }}
-             || is_ee()
-            ],
-            [
-                {emqx_message_transformation, #{
-                    config => #{
-                        <<"message_transformation">> => #{
-                            <<"transformations">> => [
-                                #{
-                                    <<"name">> => <<"t1">>,
-                                    <<"topics">> => <<"mt/fail">>,
-                                    <<"failure_action">> => <<"drop">>,
-                                    <<"payload_decoder">> => #{<<"type">> => <<"json">>},
-                                    <<"payload_encoder">> => #{<<"type">> => <<"json">>},
-                                    <<"operations">> => []
-                                }
-                            ]
-                        }
-                    }
-                }}
-             || is_ee()
-            ]
+            emqx_bridge
         ]),
         #{work_dir => emqx_cth_suite:work_dir(Config)}
     ),
@@ -881,13 +839,6 @@ t_events(_Config) ->
     session_subscribed(Client2),
     ct:pal("====== verify t1"),
     message_publish(Client),
-    is_ee() andalso
-        begin
-            ct:pal("====== verify $events/schema_validation_failed"),
-            schema_validation_failed(Client),
-            ct:pal("====== verify $events/message_transformation_failed"),
-            message_transformation_failed(Client)
-        end,
     ct:pal("====== verify $events/delivery_dropped"),
     delivery_dropped(Client),
     ct:pal("====== verify $events/message_delivered"),
@@ -4027,9 +3978,6 @@ t_failed_rule_metrics(_Config) ->
 %%------------------------------------------------------------------------------
 %% Internal helpers
 %%------------------------------------------------------------------------------
-
-is_ee() ->
-    emqx_release:edition() == ee.
 
 get_counters(RuleId) ->
     emqx_metrics_worker:get_counters(rule_metrics, RuleId).

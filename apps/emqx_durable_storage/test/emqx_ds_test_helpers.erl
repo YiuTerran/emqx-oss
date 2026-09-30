@@ -28,15 +28,7 @@
 ).
 
 skip_if_norepl() ->
-    try emqx_release:edition() of
-        ee ->
-            false;
-        _ ->
-            {skip, no_ds_replication}
-    catch
-        error:undef ->
-            {skip, standalone_not_supported}
-    end.
+    {skip, no_ds_replication}.
 
 -spec on([node()] | node(), fun(() -> A)) -> A | [A].
 on(Node, Fun) when is_atom(Node) ->

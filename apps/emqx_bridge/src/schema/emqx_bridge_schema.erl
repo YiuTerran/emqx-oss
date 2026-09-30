@@ -90,32 +90,9 @@ bridge_api_union(Refs) ->
             end
     end.
 
--if(?EMQX_RELEASE_EDITION == ee).
-enterprise_api_schemas(Method) ->
-    %% We *must* do this to ensure the module is really loaded, especially when we use
-    %% `call_hocon' from `nodetool' to generate initial configurations.
-    ok = emqx_utils:interactive_load(emqx_bridge_enterprise),
-    case erlang:function_exported(emqx_bridge_enterprise, api_schemas, 1) of
-        true -> emqx_bridge_enterprise:api_schemas(Method);
-        false -> []
-    end.
-
-enterprise_fields_bridges() ->
-    %% We *must* do this to ensure the module is really loaded, especially when we use
-    %% `call_hocon' from `nodetool' to generate initial configurations.
-    ok = emqx_utils:interactive_load(emqx_bridge_enterprise),
-    case erlang:function_exported(emqx_bridge_enterprise, fields, 1) of
-        true -> emqx_bridge_enterprise:fields(bridges);
-        false -> []
-    end.
-
--else.
-
 enterprise_api_schemas(_) -> [].
 
 enterprise_fields_bridges() -> [].
-
--endif.
 
 common_bridge_fields() ->
     [

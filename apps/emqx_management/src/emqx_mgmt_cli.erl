@@ -949,85 +949,8 @@ collect_data_export_args(Args, _Acc) ->
 %%--------------------------------------------------------------------
 %% @doc Durable storage command
 
--if(?EMQX_RELEASE_EDITION == ee).
-
-ds(CMD) ->
-    case emqx_mgmt_api_ds:is_enabled() of
-        true ->
-            do_ds(CMD);
-        false ->
-            emqx_ctl:usage([{"ds", "Durable storage is disabled"}])
-    end.
-
-do_ds(["info"]) ->
-    emqx_ds_replication_layer_meta:print_status(),
-    ok;
-do_ds(["set-replicas", DBStr | SitesStr]) ->
-    case emqx_utils:safe_to_existing_atom(DBStr) of
-        {ok, DB} ->
-            Sites = lists:map(fun list_to_binary/1, SitesStr),
-            case emqx_mgmt_api_ds:update_db_sites(DB, Sites, cli) of
-                {ok, _} ->
-                    emqx_ctl:print("ok~n");
-                {error, Description} ->
-                    emqx_ctl:warning("Unable to update replicas: ~s~n", [Description])
-            end;
-        {error, _} ->
-            emqx_ctl:warning("Unknown durable storage")
-    end;
-do_ds(["set_replicas" | Args]) ->
-    do_ds(["set-replicas" | Args]);
-do_ds(["join", DBStr, Site]) ->
-    case emqx_utils:safe_to_existing_atom(DBStr) of
-        {ok, DB} ->
-            case emqx_mgmt_api_ds:join(DB, list_to_binary(Site), cli) of
-                {ok, unchanged} ->
-                    emqx_ctl:print("unchanged~n");
-                {ok, _} ->
-                    emqx_ctl:print("ok~n");
-                {error, Description} ->
-                    emqx_ctl:warning("Unable to update replicas: ~s~n", [Description])
-            end;
-        {error, _} ->
-            emqx_ctl:warning("Unknown durable storage~n")
-    end;
-do_ds(["leave", DBStr, Site]) ->
-    case emqx_utils:safe_to_existing_atom(DBStr) of
-        {ok, DB} ->
-            case emqx_mgmt_api_ds:leave(DB, list_to_binary(Site), cli) of
-                {ok, unchanged} ->
-                    emqx_ctl:print("unchanged~n");
-                {ok, _} ->
-                    emqx_ctl:print("ok~n");
-                {error, Description} ->
-                    emqx_ctl:warning("Unable to update replicas: ~s~n", [Description])
-            end;
-        {error, _} ->
-            emqx_ctl:warning("Unknown durable storage~n")
-    end;
-do_ds(["forget", Site]) ->
-    case emqx_mgmt_api_ds:forget(list_to_binary(Site), cli) of
-        ok ->
-            emqx_ctl:print("ok~n");
-        {error, Description} ->
-            emqx_ctl:warning("Unable to forget site: ~s~n", [Description])
-    end;
-do_ds(_) ->
-    emqx_ctl:usage([
-        {"ds info", "Show overview of the embedded durable storage state"},
-        {"ds set-replicas <storage> <site1> <site2> ...",
-            "Change the replica set of the durable storage"},
-        {"ds join <storage> <site>", "Add site to the replica set of the storage"},
-        {"ds leave <storage> <site>", "Remove site from the replica set of the storage"},
-        {"ds forget <site>", "Remove a site from the list of known sites"}
-    ]).
-
--else.
-
 ds(_CMD) ->
     emqx_ctl:usage([{"ds", "DS CLI is not available in this edition of EMQX"}]).
-
--endif.
 
 %%--------------------------------------------------------------------
 %% Dump ETS

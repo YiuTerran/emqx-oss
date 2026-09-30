@@ -25,7 +25,7 @@
 ]).
 
 %% @doc Get "used-by" dependencies from remote function calls.
-%% RelDir Path to the release lib directory (e.g., "_build/emqx-enterprise/lib")
+%% RelDir Path to the release lib directory (e.g., "_build/emqx/lib")
 %% ModToAppMap Map of Module => App atom.
 %% Returns map of App => Set of apps that call it (directly)
 get_call_dependents(RelDir, ModToAppMap) ->
@@ -38,7 +38,7 @@ get_call_dependents(RelDir, ModToAppMap) ->
     collect_callee_to_caller_map(AllRemoteCalls, ModToAppMap, EmqxAppsSet, Acc0).
 
 %% @doc Get "used-by" dependencies from include_lib directives.
-%% LibDir Path to the release lib directory (e.g., "_build/emqx-enterprise/lib")
+%% LibDir Path to the release lib directory (e.g., "_build/emqx/lib")
 %% AppNames List of app atoms
 %% Returns map of App => Set of apps that include headers from it (directly)
 get_include_dependents(LibDir, AppNames) ->

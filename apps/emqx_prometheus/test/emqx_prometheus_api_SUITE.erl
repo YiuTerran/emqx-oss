@@ -51,11 +51,7 @@ init_per_suite(Config) ->
             emqx_conf,
             emqx_management,
             {emqx_prometheus, #{start => false}},
-            {emqx_dashboard, "dashboard.listeners.http { enable = true, bind = 18083 }"},
-            [
-                {emqx_license, "license.key = default"}
-             || emqx_release:edition() == ee
-            ]
+            {emqx_dashboard, "dashboard.listeners.http { enable = true, bind = 18083 }"}
         ]),
         #{work_dir => emqx_cth_suite:work_dir(Config)}
     ),

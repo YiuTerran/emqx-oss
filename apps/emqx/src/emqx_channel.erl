@@ -81,19 +81,6 @@
 ]).
 -endif.
 
--if(?EMQX_RELEASE_EDITION == ee).
--import(emqx_external_trace, [
-    connect_attrs/2,
-    basic_attrs/1,
-    topic_attrs/1,
-    authn_attrs/1,
-    sub_authz_attrs/1,
-    disconnect_attrs/2
-]).
-
--else.
--endif.
-
 -import(
     emqx_utils,
     [

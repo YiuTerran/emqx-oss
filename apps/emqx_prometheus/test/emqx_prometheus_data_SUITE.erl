@@ -81,9 +81,7 @@ all() ->
     lists:flatten([
         {group, '/prometheus/stats'},
         {group, '/prometheus/auth'},
-        {group, '/prometheus/data_integration'},
-        [{group, '/prometheus/schema_validation'} || emqx_release:edition() == ee],
-        [{group, '/prometheus/message_transformation'} || emqx_release:edition() == ee]
+        {group, '/prometheus/data_integration'}
     ]).
 
 groups() ->
@@ -101,8 +99,6 @@ groups() ->
         {'/prometheus/stats', ModeGroups},
         {'/prometheus/auth', ModeGroups},
         {'/prometheus/data_integration', ModeGroups},
-        {'/prometheus/schema_validation', ModeGroups},
-        {'/prometheus/message_transformation', ModeGroups},
         {?PROM_DATA_MODE__NODE, AcceptGroups},
         {?PROM_DATA_MODE__ALL_NODES_AGGREGATED, AcceptGroups},
         {?PROM_DATA_MODE__ALL_NODES_UNAGGREGATED, AcceptGroups},
@@ -132,14 +128,6 @@ init_per_suite(Config) ->
             emqx_rule_engine,
             emqx_bridge_http,
             emqx_connector,
-            [
-                {emqx_schema_validation, #{config => schema_validation_config()}}
-             || emqx_release:edition() == ee
-            ],
-            [
-                {emqx_message_transformation, #{config => message_transformation_config()}}
-             || emqx_release:edition() == ee
-            ],
             {emqx_prometheus, emqx_prometheus_SUITE:legacy_conf_default()},
             emqx_management
         ]),
@@ -163,10 +151,6 @@ init_per_group('/prometheus/auth', Config) ->
     [{module, emqx_prometheus_auth} | Config];
 init_per_group('/prometheus/data_integration', Config) ->
     [{module, emqx_prometheus_data_integration} | Config];
-init_per_group('/prometheus/schema_validation', Config) ->
-    [{module, emqx_prometheus_schema_validation} | Config];
-init_per_group('/prometheus/message_transformation', Config) ->
-    [{module, emqx_prometheus_message_transformation} | Config];
 init_per_group(?PROM_DATA_MODE__NODE, Config) ->
     [{mode, ?PROM_DATA_MODE__NODE} | Config];
 init_per_group(?PROM_DATA_MODE__ALL_NODES_AGGREGATED, Config) ->
@@ -341,7 +325,6 @@ metric_meta(<<"emqx_cluster_nodes_stopped">>) -> ?meta(0, 1, 1);
 metric_meta(<<"emqx_conf_sync_txid">>) -> ?meta(0, 1, 1);
 %% END
 metric_meta(<<"emqx_cert_expiry_at">>) -> ?meta(2, 2, 2);
-metric_meta(<<"emqx_license_expiry_at">>) -> ?meta(0, 0, 0);
 %% mria metric with label `shard` and `node` when not in mode `node`
 metric_meta(<<"emqx_mria_", _Tail/binary>>) -> ?meta(1, 2, 2);
 %% `/prometheus/auth`
@@ -358,10 +341,6 @@ metric_meta(<<"emqx_schema_registrys_count">>) -> ?meta(0, 0, 0);
 metric_meta(<<"emqx_rule_", _Tail/binary>>) -> ?meta(1, 1, 2);
 metric_meta(<<"emqx_action_", _Tail/binary>>) -> ?meta(1, 1, 2);
 metric_meta(<<"emqx_connector_", _Tail/binary>>) -> ?meta(1, 1, 2);
-%% `/prometheus/schema_validation`
-metric_meta(<<"emqx_schema_validation_", _Tail/binary>>) -> ?meta(1, 1, 2);
-%% `/prometheus/message_transformation`
-metric_meta(<<"emqx_message_transformation_", _Tail/binary>>) -> ?meta(1, 1, 2);
 %% normal emqx metrics
 metric_meta(<<"emqx_", _Tail/binary>>) -> ?meta(0, 0, 1);
 metric_meta(_) -> #{}.
@@ -693,13 +672,6 @@ eval_foreach_assert(FunctionName, Ms) ->
     end,
     Fun().
 
--if(?EMQX_RELEASE_EDITION == ee).
-%% license always map
-assert_json_data__license(M, _) ->
-    ?assertMatch(#{emqx_license_expiry_at := _}, M).
--else.
--endif.
-
 -define(assert_node_foreach(Ms), lists:foreach(fun(M) -> ?assertMatch(#{node := _}, M) end, Ms)).
 
 assert_json_data__emqx_banned(M, _) ->
@@ -846,19 +818,6 @@ assert_json_data__connectors(Ms, ?PROM_DATA_MODE__ALL_NODES_UNAGGREGATED) when
 ->
     ?assert_node_foreach(Ms).
 
--if(?EMQX_RELEASE_EDITION == ee).
-assert_json_data__data_integration_overview(M, _) ->
-    ?assertMatch(
-        #{
-            emqx_connectors_count := _,
-            emqx_rules_count := _,
-            emqx_actions_count := _,
-            emqx_schema_registrys_count := _
-        },
-        M
-    ).
-
--else.
 assert_json_data__data_integration_overview(M, _) ->
     ?assertMatch(
         #{
@@ -868,80 +827,6 @@ assert_json_data__data_integration_overview(M, _) ->
         },
         M
     ).
--endif.
-
-assert_json_data__schema_validations(Ms, _) ->
-    lists:foreach(
-        fun(M) ->
-            ?assertMatch(
-                #{
-                    validation_name := _,
-                    emqx_schema_validation_enable := _,
-                    emqx_schema_validation_matched := _,
-                    emqx_schema_validation_failed := _,
-                    emqx_schema_validation_succeeded := _
-                },
-                M
-            )
-        end,
-        Ms
-    ).
-
-assert_json_data__message_transformations(Ms, _) ->
-    lists:foreach(
-        fun(M) ->
-            ?assertMatch(
-                #{
-                    validation_name := _,
-                    emqx_message_transformation_enable := _,
-                    emqx_message_transformation_matched := _,
-                    emqx_message_transformation_failed := _,
-                    emqx_message_transformation_succeeded := _
-                },
-                M
-            )
-        end,
-        Ms
-    ).
-
-schema_validation_config() ->
-    Validation = #{
-        <<"enable">> => true,
-        <<"name">> => <<"my_validation">>,
-        <<"topics">> => [<<"t/#">>],
-        <<"strategy">> => <<"all_pass">>,
-        <<"failure_action">> => <<"drop">>,
-        <<"checks">> => [
-            #{
-                <<"type">> => <<"sql">>,
-                <<"sql">> => <<"select * where true">>
-            }
-        ]
-    },
-    #{
-        <<"schema_validation">> => #{
-            <<"validations">> => [Validation]
-        }
-    }.
-
-message_transformation_config() ->
-    Transformation = #{
-        <<"enable">> => true,
-        <<"name">> => <<"my_transformation">>,
-        <<"topics">> => [<<"t/#">>],
-        <<"failure_action">> => <<"drop">>,
-        <<"operations">> => [
-            #{
-                <<"key">> => <<"topic">>,
-                <<"value">> => <<"concat([topic, '/', payload.t])">>
-            }
-        ]
-    },
-    #{
-        <<"message_transformation">> => #{
-            <<"transformations">> => [Transformation]
-        }
-    }.
 
 stop_apps(Apps) ->
     lists:foreach(fun application:stop/1, Apps).

@@ -199,12 +199,7 @@ bridge_info_examples(Method) ->
         emqx_enterprise_bridge_examples(Method)
     ).
 
--if(?EMQX_RELEASE_EDITION == ee).
-emqx_enterprise_bridge_examples(Method) ->
-    emqx_bridge_enterprise:examples(Method).
--else.
 emqx_enterprise_bridge_examples(_Method) -> #{}.
--endif.
 
 kafka_v1_example(Method) ->
     info_example(kafka, Method).

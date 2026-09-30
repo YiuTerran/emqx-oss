@@ -37,12 +37,7 @@
 -define(ON(NODE, BODY), erpc:call(NODE, fun() -> BODY end)).
 
 all() ->
-    case emqx_cth_suite:skip_if_oss() of
-        false ->
-            emqx_common_test_helpers:all(?MODULE);
-        True ->
-            True
-    end.
+    emqx_cth_suite:skip_if_oss().
 
 init_per_suite(Config) ->
     Config.
@@ -50,14 +45,6 @@ init_per_suite(Config) ->
 end_per_suite(_) ->
     ok.
 
-init_per_testcase(TC, Config) when
-    TC =:= t_upload_ee_backup;
-    TC =:= t_import_ee_backup
-->
-    case emqx_release:edition() of
-        ee -> do_init_per_testcase(TC, Config);
-        ce -> Config
-    end;
 init_per_testcase(TC, Config) ->
     do_init_per_testcase(TC, Config).
 
@@ -119,20 +106,14 @@ t_list_backups(Config) ->
 t_upload_ce_backup(Config) ->
     upload_backup_test(Config, ?UPLOAD_CE_BACKUP).
 
-t_upload_ee_backup(Config) ->
-    case emqx_release:edition() of
-        ee -> upload_backup_test(Config, ?UPLOAD_EE_BACKUP);
-        ce -> ok
-    end.
+t_upload_ee_backup(_Config) ->
+    ok.
 
 t_import_ce_backup(Config) ->
     import_backup_test(Config, ?UPLOAD_CE_BACKUP).
 
-t_import_ee_backup(Config) ->
-    case emqx_release:edition() of
-        ee -> import_backup_test(Config, ?UPLOAD_EE_BACKUP);
-        ce -> ok
-    end.
+t_import_ee_backup(_Config) ->
+    ok.
 
 %% Simple smoke test for cloud export API (export with scoped table set names and root
 %% keys).

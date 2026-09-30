@@ -514,20 +514,7 @@ schema_module() ->
 
 %% "Unofficial" `emqx_conf' API
 upgrade_raw_conf(Conf) ->
-    case emqx_release:edition() of
-        ee ->
-            emqx_enterprise_schema:upgrade_raw_conf(Conf);
-        ce ->
-            emqx_conf_schema:upgrade_raw_conf(Conf)
-    end.
+    emqx_conf_schema:upgrade_raw_conf(Conf).
 
 skip_if_oss() ->
-    try emqx_release:edition() of
-        ee ->
-            false;
-        _ ->
-            {skip, not_supported_in_oss}
-    catch
-        error:undef ->
-            {skip, standalone_not_supported}
-    end.
+    {skip, not_supported_in_oss}.

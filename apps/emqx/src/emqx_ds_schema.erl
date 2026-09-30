@@ -35,17 +35,8 @@
 %% Type declarations
 %%================================================================================
 
--ifndef(EMQX_RELEASE_EDITION).
--define(EMQX_RELEASE_EDITION, ce).
--endif.
-
--if(?EMQX_RELEASE_EDITION == ee).
--define(DEFAULT_BACKEND, builtin_raft).
--define(BUILTIN_BACKENDS, [builtin_raft, builtin_local]).
--else.
 -define(DEFAULT_BACKEND, builtin_local).
 -define(BUILTIN_BACKENDS, [builtin_local]).
--endif.
 
 %%================================================================================
 %% API

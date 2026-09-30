@@ -362,11 +362,10 @@ defmodule EMQXUmbrella.MixProject do
   # END DEPRECATED FOR MIX BLOCK
   ###############################################################################################
 
-  defp erlc_options(%{edition_type: edition_type}, version) do
+  defp erlc_options(_Profile, version) do
     [
       :debug_info,
       {:compile_info, [{:emqx_vsn, String.to_charlist(version)}]},
-      {:d, :EMQX_RELEASE_EDITION, erlang_edition(edition_type)},
       {:d, :EMQX_ELIXIR},
       {:d, :EMQX_FLAVOR, get_emqx_flavor()},
       {:d, :snk_kind, :msg}
@@ -656,23 +655,6 @@ defmodule EMQXUmbrella.MixProject do
         :"emqx-pkg" ->
           {:standard, :pkg, :community}
       end
-
-    test? = to_string(mix_env) =~ ~r/-test$/ || test_env?()
-
-    normalize_env!(test?)
-
-    # Mix.debug(true)
-
-    if Mix.debug?() do
-      Mix.shell().info([
-        :blue,
-        "mix_env: #{Mix.env()}",
-        "; release type: #{release_type}",
-        "; package type: #{package_type}",
-        "; edition type: #{edition_type}",
-        "; test env?: #{test?}"
-      ])
-    end
 
     test? = to_string(mix_env) =~ ~r/-test$/ || test_env?()
 
@@ -1161,8 +1143,6 @@ defmodule EMQXUmbrella.MixProject do
     |> then(&:io_lib.format("~0p", [&1]))
     |> :erlang.iolist_to_binary()
   end
-
-  defp erlang_edition(:community), do: :ce
 
   defp aliases() do
     [

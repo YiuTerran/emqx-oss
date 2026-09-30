@@ -370,28 +370,6 @@ change_pwd(post, #{bindings := #{username := Username}, body := Params}) ->
             end
     end.
 
--if(?EMQX_RELEASE_EDITION == ee).
-field_filter(_) ->
-    true.
-
-filter_result(Result) ->
-    Result.
-
-sso_parameters() ->
-    sso_parameters([]).
-
-sso_parameters(Params) ->
-    emqx_dashboard_sso_api:sso_parameters(Params).
-
-username(#{query_string := #{<<"backend">> := ?BACKEND_LOCAL}}, Username) ->
-    Username;
-username(#{query_string := #{<<"backend">> := Backend}}, Username) ->
-    ?SSO_USERNAME(Backend, Username);
-username(_Req, Username) ->
-    Username.
-
--else.
-
 field_filter(role) ->
     false;
 field_filter(_) ->
@@ -410,4 +388,3 @@ sso_parameters(Any) ->
 
 username(_Req, Username) ->
     Username.
--endif.

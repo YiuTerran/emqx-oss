@@ -37,10 +37,6 @@
 
 -include("emqx_release.hrl").
 
--ifndef(EMQX_RELEASE_EDITION).
--define(EMQX_RELEASE_EDITION, ce).
--endif.
-
 -define(EMQX_DESCS, #{
     ee =>
         case get_flavor() of
@@ -68,7 +64,7 @@
 %% @hidden Initialize edition. Almost static. use persistent_term to trick compiler.
 -spec on_load() -> ok.
 on_load() ->
-    persistent_term:put('EMQX_RELEASE_EDITION', ?EMQX_RELEASE_EDITION).
+    persistent_term:put('EMQX_RELEASE_EDITION', ce).
 
 %% @doc Return EMQX description.
 -dialyzer({[no_match], [description/0]}).

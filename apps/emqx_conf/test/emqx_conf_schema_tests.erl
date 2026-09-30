@@ -692,13 +692,7 @@ invalid_role_test() ->
     ).
 
 unsupported_role_test() ->
-    test_unsupported_role(emqx_release:edition()).
-
-test_unsupported_role(ee) ->
-    %% all roles are supported in ee
-    ok;
-test_unsupported_role(ce) ->
-    %% replicant role is not allowed for ce since 5.8.0
+    %% replicant role is not allowed since 5.8.0
     Conf = node_role_conf(replicant),
     ?assertThrow(
         {emqx_conf_schema, [

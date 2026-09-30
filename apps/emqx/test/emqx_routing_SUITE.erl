@@ -37,22 +37,15 @@ all() ->
 groups() ->
     GroupVsn = [
         {group, batch_sync_on},
-        {group, batch_sync_replicants},
         {group, batch_sync_off}
-    ],
-    ClusterTCs = [
-        t_cluster_routing,
-        t_slow_rlog_routing_consistency
     ],
     SingleTCs = [t_concurrent_routing_updates],
     BatchSyncTCs = lists:duplicate(5, t_concurrent_routing_updates_with_errors),
     [
         {routing_schema_v1, [], GroupVsn},
         {routing_schema_v2, [], GroupVsn},
-        {batch_sync_on, [], [{group, cluster}, {group, single_batch_on}]},
-        {batch_sync_replicants, [], [{group, cluster}, {group, single}]},
-        {batch_sync_off, [], [{group, cluster}, {group, single}]},
-        {cluster, [], ClusterTCs},
+        {batch_sync_on, [], [{group, single_batch_on}]},
+        {batch_sync_off, [], [{group, single}]},
         {single_batch_on, [], SingleTCs ++ BatchSyncTCs},
         {single, [], SingleTCs}
     ].
@@ -63,29 +56,8 @@ init_per_group(routing_schema_v2, Config) ->
     [{emqx_config, "broker.routing.storage_schema = v2"} | Config];
 init_per_group(batch_sync_on, Config) ->
     [{emqx_config, "broker.routing.batch_sync.enable_on = all"} | Config];
-init_per_group(batch_sync_replicants, Config) ->
-    case emqx_cth_suite:skip_if_oss() of
-        false ->
-            [{emqx_config, "broker.routing.batch_sync.enable_on = replicant"} | Config];
-        True ->
-            True
-    end;
 init_per_group(batch_sync_off, Config) ->
     [{emqx_config, "broker.routing.batch_sync.enable_on = none"} | Config];
-init_per_group(cluster, Config) ->
-    case emqx_cth_suite:skip_if_oss() of
-        false ->
-            WorkDir = emqx_cth_suite:work_dir(Config),
-            NodeSpecs = [
-                {emqx_routing_SUITE1, #{apps => [mk_emqx_appspec(1, Config)], role => core}},
-                {emqx_routing_SUITE2, #{apps => [mk_emqx_appspec(2, Config)], role => core}},
-                {emqx_routing_SUITE3, #{apps => [mk_emqx_appspec(3, Config)], role => replicant}}
-            ],
-            Nodes = emqx_cth_cluster:start(NodeSpecs, #{work_dir => WorkDir}),
-            [{cluster, Nodes} | Config];
-        True ->
-            True
-    end;
 init_per_group(GroupName, Config) when
     GroupName =:= single_batch_on;
     GroupName =:= single

@@ -141,12 +141,11 @@ common_compile_opts() ->
     #{edition := Edition, reltype := RelType} = get_edition_from_profile_env(),
     common_compile_opts(Edition, RelType, undefined).
 
-common_compile_opts(Edition, _RelType, Vsn) ->
+common_compile_opts(_Edition, _RelType, Vsn) ->
     % always include debug_info
     [
         debug_info,
-        {compile_info, [{emqx_vsn, Vsn} || Vsn /= undefined]},
-        {d, 'EMQX_RELEASE_EDITION', Edition}
+        {compile_info, [{emqx_vsn, Vsn} || Vsn /= undefined]}
     ] ++
         [{d, 'EMQX_BENCHMARK'} || os:getenv("EMQX_BENCHMARK") =:= "1"] ++
         [{d, 'STORE_STATE_IN_DS'} || os:getenv("STORE_STATE_IN_DS") =:= "1"] ++
@@ -168,8 +167,6 @@ warn_profile_env() ->
 %% this function is only used for test/check profiles
 get_edition_from_profile_env() ->
     case os:getenv("PROFILE") of
-        "emqx-enterprise" ++ _ ->
-            exit(unsupported_profile);
         "emqx" ++ _ ->
             #{edition => ce, reltype => standard};
         false ->

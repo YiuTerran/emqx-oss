@@ -106,8 +106,4 @@
     disconnected_durable_sessions
 ]).
 
--if(?EMQX_RELEASE_EDITION == ee).
--define(LICENSE_QUOTA, [license_quota]).
--else.
 -define(LICENSE_QUOTA, []).
--endif.

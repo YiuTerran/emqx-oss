@@ -257,20 +257,11 @@ filter_false(K, V, S) -> [{K, V} | S].
 listener_name(Protocol) ->
     list_to_atom(atom_to_list(Protocol) ++ ":dashboard").
 
--dialyzer({no_match, [audit_log_fun/0]}).
-
 audit_log_fun() ->
-    case emqx_release:edition() of
-        ee -> emqx_dashboard_audit:log_fun();
-        ce -> undefined
-    end.
-
--if(?EMQX_RELEASE_EDITION =/= ee).
+    undefined.
 
 %% dialyzer complains about the `unauthorized_role' clause...
 -dialyzer({no_match, [authorize/2, api_key_authorize/4]}).
-
--endif.
 
 authorize(Req, HandlerInfo) ->
     case cowboy_req:parse_header(<<"authorization">>, Req) of
