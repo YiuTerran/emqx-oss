@@ -9,7 +9,7 @@ SCRIPTS = $(CURDIR)/scripts
 include env.sh
 
 # Dashboard version
-# from https://github.com/emqx/emqx-dashboard5
+# from https://github.com/YiuTerran/emqx-dashboard-oss (fork of emqx/emqx-dashboard5)
 export EMQX_DASHBOARD_VERSION ?= v1.10.5
 
 export EMQX_RELUP ?= true

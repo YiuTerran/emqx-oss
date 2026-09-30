@@ -17,8 +17,11 @@ case "$VERSION" in
 esac
 
 DASHBOARD_PATH='apps/emqx_dashboard/priv'
-DASHBOARD_REPO='emqx-dashboard5'
-DIRECT_DOWNLOAD_URL="https://github.com/emqx/${DASHBOARD_REPO}/releases/download/${VERSION}/${RELEASE_ASSET_FILE}"
+# Fork of emqx/emqx-dashboard5: adds the Kafka connector/action entry points.
+# It must publish a release asset named emqx-dashboard-<VERSION>.zip
+# (zip root `dist/`, with dist/version containing `github_ref: refs/tags/<VERSION>`).
+DASHBOARD_REPO='YiuTerran/emqx-dashboard-oss'
+DIRECT_DOWNLOAD_URL="https://github.com/${DASHBOARD_REPO}/releases/download/${VERSION}/${RELEASE_ASSET_FILE}"
 
 case $(uname) in
     *Darwin*) SED="sed -E";;
