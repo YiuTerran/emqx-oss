@@ -39,6 +39,24 @@ namespace() -> "bridge_kafka".
 roots() -> [].
 
 %%--------------------------------------------------------------------
+%% v1: bridges API and config file
+%%
+%% Kafka producer is a v2 only action, so its v1 view is the automatic
+%% downgrade of the action and connector configs, with the `parameters'
+%% of both unindented (see
+%% `emqx_action_info:connector_action_config_to_bridge_v1_config/2').
+%% See also `emqx_bridge_schema:get_response/0', `put_request/0',
+%% `post_request/0' and `emqx_bridge_schema:fields(bridges)'.
+%%--------------------------------------------------------------------
+fields("post") ->
+    [bridge_v1_type_field(), name_field() | fields("config")];
+fields("put") ->
+    fields("config");
+fields("get") ->
+    emqx_bridge_schema:status_fields() ++ fields("post");
+fields("config") ->
+    v1_config_fields();
+%%--------------------------------------------------------------------
 %% v2: configuration
 %%--------------------------------------------------------------------
 fields(action) ->
@@ -238,6 +256,11 @@ fields("config_connector") ->
         emqx_connector_schema:resource_opts_ref(?MODULE, connector_resource_opts);
 fields(connector_resource_opts) ->
     emqx_connector_schema:resource_opts_fields();
+fields(v1_resource_opts) ->
+    dedup_fields(
+        emqx_bridge_v2_schema:action_resource_opts_fields() ++
+            emqx_connector_schema:resource_opts_fields()
+    );
 %%--------------------------------------------------------------------
 %% connector configuration
 %%--------------------------------------------------------------------
@@ -495,6 +518,58 @@ desc(_) ->
 %%--------------------------------------------------------------------
 %% common funcs
 %%--------------------------------------------------------------------
+
+%% The v1 view of a Kafka producer holds the union of the fields of its
+%% action and connector configs, with `parameters' unindented and the
+%% `resource_opts' of both deep merged.
+v1_config_fields() ->
+    ActionFields = [
+        Field
+     || {Key, _} = Field <- fields(kafka_producer_action),
+        Key =/= connector,
+        Key =/= parameters,
+        Key =/= resource_opts
+    ],
+    dedup_fields(
+        emqx_bridge_schema:common_bridge_fields() ++
+            emqx_connector_schema:common_fields() ++
+            connector_fields() ++
+            ActionFields ++
+            fields(action_parameters) ++
+            [
+                {resource_opts,
+                    mk(ref(?MODULE, v1_resource_opts), #{
+                        required => false,
+                        default => #{},
+                        desc => ?DESC(emqx_resource_schema, resource_opts)
+                    })}
+            ]
+    ).
+
+dedup_fields(Fields) ->
+    lists:reverse(
+        lists:foldl(
+            fun(Field, Acc) ->
+                case lists:keymember(element(1, Field), 1, Acc) of
+                    true -> Acc;
+                    false -> [Field | Acc]
+                end
+            end,
+            [],
+            Fields
+        )
+    ).
+
+%% The v1 alias of the `kafka_producer' action type.
+bridge_v1_type_field() ->
+    {type,
+        mk(
+            kafka,
+            #{
+                required => true,
+                desc => ?DESC(desc_type)
+            }
+        )}.
 
 type_field() ->
     {type,

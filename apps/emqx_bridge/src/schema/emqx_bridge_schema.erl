@@ -58,6 +58,7 @@ api_schema(Method) ->
         {Type, ref(Mod, Method)}
      || {Type, Mod} <- [
             {<<"webhook">>, emqx_bridge_http_schema},
+            {<<"kafka">>, emqx_bridge_kafka},
             {<<"mqtt">>, emqx_bridge_mqtt_schema}
         ]
     ],
@@ -184,6 +185,14 @@ fields(bridges) ->
                     desc => ?DESC("bridges_webhook"),
                     required => false,
                     converter => fun http_bridge_converter/2
+                }
+            )},
+        {kafka,
+            mk(
+                hoconsc:map(name, ref(emqx_bridge_kafka, "config")),
+                #{
+                    desc => ?DESC("bridges_kafka"),
+                    required => false
                 }
             )},
         {mqtt,

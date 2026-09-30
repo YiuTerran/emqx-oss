@@ -6,6 +6,12 @@ bridges_mqtt.desc:
 bridges_mqtt.label:
 """MQTT Bridge"""
 
+bridges_kafka.desc:
+"""Kafka producer bridges"""
+
+bridges_kafka.label:
+"""Kafka Producer Bridge"""
+
 bridges_webhook.desc:
 """WebHook to an HTTP server."""
 

@@ -190,6 +190,10 @@ bridge_info_examples(Method) ->
             <<"mqtt_example">> => #{
                 summary => <<"MQTT Bridge">>,
                 value => mqtt_v1_example(Method)
+            },
+            <<"kafka_example">> => #{
+                summary => <<"Kafka Producer Bridge">>,
+                value => kafka_v1_example(Method)
             }
         },
         emqx_enterprise_bridge_examples(Method)
@@ -201,6 +205,9 @@ emqx_enterprise_bridge_examples(Method) ->
 -else.
 emqx_enterprise_bridge_examples(_Method) -> #{}.
 -endif.
+
+kafka_v1_example(Method) ->
+    info_example(kafka, Method).
 
 mqtt_v1_example(Method) ->
     info_example(mqtt, Method).
@@ -241,6 +248,19 @@ info_example_basic(http) ->
             query_mode => async,
             inflight_window => 100,
             max_buffer_bytes => 100 * 1024 * 1024
+        }
+    };
+info_example_basic(kafka) ->
+    #{
+        bootstrap_hosts => <<"127.0.0.1:9092">>,
+        topic => <<"my-topic">>,
+        message => #{
+            key => <<"${.clientid}">>,
+            value => <<"${payload}">>
+        },
+        resource_opts => #{
+            health_check_interval => <<"15s">>,
+            query_mode => async
         }
     };
 info_example_basic(mqtt) ->
