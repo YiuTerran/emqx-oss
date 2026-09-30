@@ -14,6 +14,13 @@ name: Release Docker image
 # tag 必须以 apps/emqx/include/emqx_release.hrl 里的 EMQX_RELEASE_CE 开头，
 # 这是 emqx_release:version/0 的前缀规则（不满足会在启动时抛 version_mismatch），
 # pkg-vsn.sh 会强制校验，precheck 把它提前到几秒内失败。
+#
+# 每个架构的 build job 会推送 <version>-amd64 / <version>-arm64 两个 staging
+# tag，merge 完成后它们会保留在 Docker Hub 上（想拉单个架构时反而有用）。
+# 曾尝试用 Docker Hub API 删掉它们，但 DELETE
+# https://hub.docker.com/v2/repositories/<ns>/<repo>/tags/<tag>/
+# 用 PAT 做 basic auth 返回 401（2026-09-30 实测），所以不做这一步，
+# 也不留一个每次都失败的步骤。
 
 on:
   push:
@@ -179,7 +186,6 @@ jobs:
           echo "=== ${IMAGE}:${VERSION} ==="
           docker buildx imagetools inspect "${IMAGE}:${VERSION}"
 
-      # 最终确认镜像里真的是 fork 的 dashboard（而不是官方那份 / 空的）
       - name: Smoke test - dashboard Kafka entry present in image
         env:
           IMAGE: ${{ vars.DOCKERHUB_IMAGE }}
@@ -196,19 +202,3 @@ jobs:
             grep -q "Kafka 生产者" "$d"/static/js/app*.js
             echo "smoke test OK"
           '
-
-      - name: Remove per-arch staging tags
-        env:
-          IMAGE: ${{ vars.DOCKERHUB_IMAGE }}
-          VERSION: ${{ needs.precheck.outputs.version }}
-          DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
-          DH_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        run: |
-          set -uo pipefail
-          NS="${IMAGE%%/*}"
-          REPO="${IMAGE##*/}"
-          for a in amd64 arm64; do
-            code="$(curl -s -o /dev/null -w '%{http_code}' -u "${DH_USER}:${DH_TOKEN}" -X DELETE \
-              "https://hub.docker.com/v2/repositories/${NS}/${REPO}/tags/${VERSION}-${a}/")"
-            echo "删除 staging tag ${VERSION}-${a}: HTTP ${code}"
-          done
