@@ -103,16 +103,29 @@ git_exact_vsn() {
 
 GIT_EXACT_VSN="$(git_exact_vsn)"
 if [ "$GIT_EXACT_VSN" != '' ]; then
-    if [ "$GIT_EXACT_VSN" != "$RELEASE" ]; then
-        echo "ERROR: Tagged $GIT_EXACT_VSN, but $RELEASE in include/emqx_release.hrl" 1>&2
-        exit 1
-    fi
+    # emqx_release:version/0 only requires the build version to *start with*
+    # ?EMQX_RELEASE_CE (it uses string:str/2 == 1), so a tag such as
+    # v5.8.9-build.1 is perfectly valid while emqx_release.hrl still reads
+    # 5.8.9. Demanding strict equality here was stricter than the runtime and
+    # rejected those tags, so only the prefix rule is enforced.
+    case "$GIT_EXACT_VSN" in
+        "$RELEASE"*) ;;
+        *)
+            echo "ERROR: Tagged $GIT_EXACT_VSN, but $RELEASE in apps/emqx/include/emqx_release.hrl" 1>&2
+            echo "ERROR: the version must start with '$RELEASE'; bump EMQX_RELEASE_CE first" 1>&2
+            exit 1
+            ;;
+    esac
+    # Use the tag itself as the version so that it matches the published
+    # artifact tag (e.g. the docker image tag).
+    BASE_VSN="$GIT_EXACT_VSN"
     SUFFIX=''
 else
+    BASE_VSN="$RELEASE"
     SUFFIX="-g$(git rev-parse HEAD | cut -b1-8)"
 fi
 
-PKG_VSN="${PKG_VSN:-${RELEASE}${SUFFIX}}"
+PKG_VSN="${PKG_VSN:-${BASE_VSN}${SUFFIX}}"
 
 if [ "${LONG_VERSION:-}" != 'yes' ]; then
     echo "$PKG_VSN"

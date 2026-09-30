@@ -11,8 +11,9 @@ name: Release Docker image
 # EMQX（deploy/docker/Dockerfile -> make emqx-tgz），QEMU 模拟下会慢到接近
 # GitHub 的 6 小时上限。public repo 的 arm64 runner 是免费的。
 #
-# tag 必须与 apps/emqx/include/emqx_release.hrl 里的 EMQX_RELEASE_CE 完全一致，
-# pkg-vsn.sh 会强制校验（不一致直接报错），precheck 把它提前到几秒内失败。
+# tag 必须以 apps/emqx/include/emqx_release.hrl 里的 EMQX_RELEASE_CE 开头，
+# 这是 emqx_release:version/0 的前缀规则（不满足会在启动时抛 version_mismatch），
+# pkg-vsn.sh 会强制校验，precheck 把它提前到几秒内失败。
 
 on:
   push:
@@ -72,20 +73,26 @@ jobs:
           echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
           echo "源 tag: '$RAW' -> version=$VERSION, latest=$LATEST"
 
-      - name: Verify tag matches emqx_release.hrl
+      - name: Verify version is compatible with emqx_release.hrl
         run: |
           set -euo pipefail
           RELEASE="$(grep -E 'define.+EMQX_RELEASE_CE' apps/emqx/include/emqx_release.hrl | cut -d '"' -f2)"
           VERSION='${{ steps.version.outputs.version }}'
           echo "emqx_release.hrl: $RELEASE"
           echo "镜像版本:         $VERSION"
-          if [ "$RELEASE" != "$VERSION" ]; then
-            echo "::error::版本不一致：tag 是 '$VERSION'，但 apps/emqx/include/emqx_release.hrl 里是 '$RELEASE'。"
-            echo "::error::pkg-vsn.sh 遇到这种情况会直接报 'ERROR: Tagged ..., but ... in emqx_release.hrl'。"
-            echo "::error::请改 tag 名，或先改 emqx_release.hrl 里的 EMQX_RELEASE_CE。"
-            exit 1
-          fi
-          echo "版本一致 OK"
+          # 与 emqx_release:version/0 一致：只要求以 EMQX_RELEASE_CE 开头，
+          # 所以 v5.8.9 / v5.8.9-build.1 / v5.8.90 都可以，5.9.0 不行。
+          case "$VERSION" in
+            "$RELEASE"*)
+              echo "版本兼容 OK"
+              ;;
+            *)
+              echo "::error::版本不兼容：'$VERSION' 不以 '$RELEASE' 开头。"
+              echo "::error::emqx_release:version/0 会抛 version_mismatch，EMQX 起不来。"
+              echo "::error::请先把 apps/emqx/include/emqx_release.hrl 里的 EMQX_RELEASE_CE 改成 '$VERSION'，提交后再打 tag。"
+              exit 1
+              ;;
+          esac
 
       - name: Verify dashboard release asset exists
         run: |
