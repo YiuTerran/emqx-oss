@@ -1045,10 +1045,18 @@ defmodule EMQXUmbrella.MixProject do
   end
 
   defp do_pkg_vsn() do
-    %{edition_type: edition_type} = check_profile!()
+    # `pkg-vsn.sh' takes an erlang build profile name, not an edition type
+    _ = check_profile!()
     basedir = Path.dirname(__ENV__.file)
     script = Path.join(basedir, "pkg-vsn.sh")
-    os_cmd(script, [Atom.to_string(edition_type)])
+    os_cmd(script, [pkg_vsn_profile()])
+  end
+
+  defp pkg_vsn_profile() do
+    case Mix.env() do
+      :"emqx-pkg" -> "emqx-pkg"
+      _ -> "emqx"
+    end
   end
 
   defp os_cmd(script, args) do
