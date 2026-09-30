@@ -47,9 +47,9 @@ config_schema() ->
         )}.
 
 schema_module() ->
-    emqx_bridge_kafka.
+    emqx_bridge_kafka_producer_schema.
 
 api_schema(Method) ->
     emqx_connector_schema:api_ref(
-        emqx_bridge_kafka, <<"kafka_producer">>, Method ++ "_connector"
+        emqx_bridge_kafka_producer_schema, <<"kafka_producer">>, Method ++ "_connector"
     ).

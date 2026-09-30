@@ -647,3 +647,93 @@ t_delete_action_and_connector(Config) ->
     ok = emqx_connector:remove(ConnectorType, ConnectorName),
     ?assertMatch({404, _}, get_connector_api(Config)),
     ok.
+
+%% The dashboard keeps no hard-coded list of connector types: it enumerates the
+%% components of `/schemas/connectors' and `/schemas/actions', derives the type
+%% of a component from its namespace, and renders the form of a type `T' from
+%% the component `bridge_T.post_connector' (`bridge_T.post_bridge_v2' for
+%% actions).  Make sure the Kafka components are named accordingly, otherwise
+%% Kafka would have no entry in the dashboard.
+t_dashboard_schema_refs(_Config) ->
+    ConnectorSchemas = schema_components(["/schemas", "connectors"]),
+    ConnectorRef = <<"bridge_kafka_producer.post_connector">>,
+    ct:pal("kafka connector schema components: ~p", [matching_components(ConnectorSchemas)]),
+    ?assert(lists:member(ConnectorRef, maps:keys(ConnectorSchemas))),
+    assert_contains_fields(
+        maps:get(ConnectorRef, ConnectorSchemas),
+        %% Connector fields, plus the common `post_connector' wrapper fields.
+        [
+            <<"name">>,
+            <<"type">>,
+            <<"enable">>,
+            <<"description">>,
+            <<"tags">>,
+            <<"bootstrap_hosts">>,
+            <<"authentication">>,
+            <<"ssl">>,
+            <<"connect_timeout">>,
+            <<"resource_opts">>
+        ]
+    ),
+    ActionSchemas = schema_components(["/schemas", "actions"]),
+    ActionRef = <<"bridge_kafka_producer.post_bridge_v2">>,
+    ct:pal("kafka action schema components: ~p", [matching_components(ActionSchemas)]),
+    ?assert(lists:member(ActionRef, maps:keys(ActionSchemas))),
+    ActionFields = maps:get(ActionRef, ActionSchemas),
+    assert_contains_fields(
+        ActionFields,
+        [
+            <<"name">>,
+            <<"type">>,
+            <<"enable">>,
+            <<"connector">>,
+            <<"parameters">>,
+            <<"resource_opts">>
+        ]
+    ),
+    %% The action parameters hold the Kafka producer settings (topic, message
+    %% templates, buffer, ...); they may be inlined or behind a `$ref'.
+    Parameters = maps:get(<<"parameters">>, maps:get(<<"properties">>, ActionFields, #{}), #{}),
+    ParametersSchema =
+        case Parameters of
+            #{<<"$ref">> := <<"#/components/schemas/", Ref/binary>>} ->
+                maps:get(Ref, ActionSchemas, #{});
+            _ ->
+                Parameters
+        end,
+    assert_contains_fields(ParametersSchema, [<<"topic">>, <<"message">>, <<"buffer">>]),
+    %% The deprecated (v1) `kafka' bridge keeps its own namespace, so the v2
+    %% components above must not leak into the v1 bridges schema.
+    BridgeRefs = maps:keys(schema_components(["/schemas", "bridges"])),
+    ?assert(lists:any(fun(Ref) -> is_kafka_ref(Ref, <<"bridge_kafka.">>) end, BridgeRefs)),
+    ?assertEqual([], [Ref || Ref <- BridgeRefs, is_kafka_ref(Ref, <<"bridge_kafka_producer.">>)]),
+    ok.
+
+is_kafka_ref(Ref, Prefix) ->
+    binary:match(Ref, Prefix) =:= {0, byte_size(Prefix)}.
+
+assert_contains_fields(Schema, Expected) ->
+    Properties = maps:get(<<"properties">>, Schema, #{}),
+    ?assertEqual(
+        [],
+        [
+            Field
+         || Field <- Expected,
+            not maps:is_key(Field, Properties)
+        ]
+    ).
+
+matching_components(Schemas) ->
+    maps:keys(
+        maps:filter(
+            fun(Name, _) -> binary:match(Name, <<"kafka">>) =/= nomatch end,
+            Schemas
+        )
+    ).
+
+schema_components(PathParts) ->
+    Path = emqx_mgmt_api_test_util:api_path(PathParts),
+    {ok, Body} = emqx_mgmt_api_test_util:request_api(get, Path),
+    Json = emqx_utils_json:decode(Body),
+    ?assertMatch(#{<<"components">> := #{<<"schemas">> := _}}, Json),
+    maps:get(<<"schemas">>, maps:get(<<"components">>, Json)).

@@ -37,4 +37,4 @@ connector_type_name() ->
     kafka_producer.
 
 schema_module() ->
-    emqx_bridge_kafka.
+    emqx_bridge_kafka_producer_schema.
