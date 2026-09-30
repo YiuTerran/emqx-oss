@@ -300,6 +300,15 @@ render_headers_encode_mode_json_test() ->
 %% Producer configuration
 %%------------------------------------------------------------------------------
 
+%% `wolff's' memory overload protection relies on system memory statistics
+%% which are only meaningful on Linux; see
+%% `emqx_bridge_kafka_impl_producer:is_highmem_check_supported/0'.
+expected_drop_if_highmem() ->
+    case os:type() of
+        {unix, linux} -> true;
+        _ -> false
+    end.
+
 producers_config_memory_test() ->
     Config = producers_config(#{buffer => #{mode => memory}}),
     ?assertEqual(false, maps:get(replayq_dir, Config)),
@@ -314,7 +323,7 @@ producers_config_memory_test() ->
     ?assertEqual(random, maps:get(partitioner, Config)),
     ?assertEqual(30, maps:get(partition_count_refresh_interval_seconds, Config)),
     ?assertEqual(all_partitions, maps:get(max_partitions, Config)),
-    ?assertEqual(true, maps:get(drop_if_highmem, Config)),
+    ?assertEqual(expected_drop_if_highmem(), maps:get(drop_if_highmem, Config)),
     ?assertEqual(<<"action:kafka_producer:my-action">>, maps:get(group, Config)),
     ?assertEqual(
         #{bridge_id => <<"action:kafka_producer:my-action">>},

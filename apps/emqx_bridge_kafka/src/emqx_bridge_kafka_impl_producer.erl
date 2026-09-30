@@ -500,7 +500,7 @@ producers_config(BridgeType, BridgeName, Input, IsDryRun, ActionResId) ->
         replayq_offload_mode => BufferMode =:= hybrid,
         replayq_max_total_bytes => PerPartitionLimit,
         replayq_seg_bytes => SegmentBytes,
-        drop_if_highmem => MemoryOverloadProtection,
+        drop_if_highmem => MemoryOverloadProtection andalso is_highmem_check_supported(),
         required_acks => RequiredAcks,
         max_linger_ms => MaxLingerTime,
         max_linger_bytes => MaxLingerBytes,
@@ -511,6 +511,16 @@ producers_config(BridgeType, BridgeName, Input, IsDryRun, ActionResId) ->
         max_partitions => MaxPartitions,
         telemetry_meta_data => #{bridge_id => ActionResId}
     }.
+
+%% `wolff' discards newly buffered calls when the system memory usage is above
+%% 75%, as reported by `memsup'.  Those statistics are only meaningful on
+%% Linux; on other platforms (notably macOS) the reported usage is always close
+%% to 100%, which would make every produce call be discarded.
+is_highmem_check_supported() ->
+    case os:type() of
+        {unix, linux} -> true;
+        _ -> false
+    end.
 
 partitioner(random) ->
     random;

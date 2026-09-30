@@ -223,8 +223,8 @@ create_rule_and_action_http(Config, RuleTopic, Opts) ->
 create_connector_and_action(Config, ConnectorOverrides, ActionOverrides) ->
     {201, _} = create_connector_api(Config, ConnectorOverrides),
     ?retry(
-        _Sleep = 1_000,
-        _Attempts = 20,
+        1_000,
+        20,
         ?assertMatch(
             {200, #{<<"status">> := <<"connected">>}},
             get_connector_api(Config)
@@ -232,8 +232,8 @@ create_connector_and_action(Config, ConnectorOverrides, ActionOverrides) ->
     ),
     {201, _} = create_action_api(Config, ActionOverrides),
     ?retry(
-        _Sleep = 1_000,
-        _Attempts = 20,
+        1_000,
+        20,
         ?assertEqual(<<"connected">>, action_status(Config))
     ),
     ok.
@@ -466,27 +466,27 @@ t_start_stop(Config) ->
     {201, _} = create_action_api(Config, #{}),
     ResourceId = emqx_bridge_v2_testlib:connector_resource_id(Config),
     ?retry(
-        _Sleep = 1_000,
-        _Attempts = 20,
+        1_000,
+        20,
         ?assertEqual({ok, connected}, emqx_resource_manager:health_check(ResourceId))
     ),
     %% Disabling the connector also stops the action's channel.
     {ok, _} = emqx_connector:disable_enable(disable, ConnectorType, ConnectorName),
     ?retry(
-        _Sleep = 500,
-        _Attempts = 20,
+        500,
+        20,
         ?assertMatch({error, _}, emqx_resource_manager:health_check(ResourceId))
     ),
     %% Starting it again must bring both the connector and the action back up.
     {ok, _} = emqx_connector:disable_enable(enable, ConnectorType, ConnectorName),
     ?retry(
-        _Sleep = 1_000,
-        _Attempts = 20,
+        1_000,
+        20,
         ?assertEqual({ok, connected}, emqx_resource_manager:health_check(ResourceId))
     ),
     ?retry(
-        _Sleep = 1_000,
-        _Attempts = 20,
+        1_000,
+        20,
         ?assertEqual(<<"connected">>, action_status(Config))
     ),
     ok.
@@ -506,7 +506,7 @@ t_send_message(Config) ->
     ok = publish(Client, RuleTopic, Payload),
     Predicate =
         fun(#kafka_message{value = Value}) ->
-            case emqx_utils_json:safe_decode(Value) of
+            case emqx_utils_json:safe_decode(Value, [return_maps]) of
                 {ok, Msg} when is_map(Msg) ->
                     maps:get(<<"payload">>, Msg, undefined) =:= Payload;
                 _ ->
@@ -604,8 +604,8 @@ t_connection_failure_buffering(Config) ->
     %% The action must never silently report itself as connected while the
     %% connection is down.
     ?retry(
-        _Sleep = 500,
-        _Attempts = 60,
+        500,
+        60,
         ?assert(is_disconnected_status(action_status(Config)))
     ),
     Client = connect_client(ClientId),
@@ -613,15 +613,15 @@ t_connection_failure_buffering(Config) ->
     %% The rule fires and the queries are accepted (and thus buffered) even
     %% though the connector is disconnected.
     ?retry(
-        _Sleep = 500,
-        _Attempts = 40,
+        500,
+        40,
         ?assertEqual(length(Payloads), action_metric(<<"matched">>, Config))
     ),
     ct:pal("restoring the connection to kafka"),
     ok = heal_kafka_proxies(),
     ?retry(
-        _Sleep = 1_000,
-        _Attempts = 60,
+        1_000,
+        60,
         ?assertMatch(
             {200, #{<<"status">> := <<"connected">>}},
             get_connector_api(Config)
