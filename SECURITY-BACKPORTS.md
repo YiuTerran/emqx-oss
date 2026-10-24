@@ -154,3 +154,45 @@ after the plugin-tree fixes: [40112520864](https://github.com/YiuTerran/emqx-oss
 It completed production/test compilation, the regressions listed above, release
 assembly and 1025 simultaneous MQTT client connections without plugin-loading
 errors. This is distinct from the multi-architecture Docker release gate.
+
+## Published build.6 verification (2026-10-25)
+
+Source tag `v5.8.9-build.6` resolves to
+`c1c7b8bc37641ccddd56480e460dd741f0c5a6ba`. The release includes Dashboard
+`v1.10.9` and the custom OTP runtime documented above. The corrected OTP
+Docker Hub repository is `tryao/emqx-otp-oss`; the broker repository remains
+`tryao/emqx-oss`.
+
+All jobs in the [Docker release run
+40113226839](https://github.com/YiuTerran/emqx-oss/actions/runs/40113226839)
+succeeded, including native amd64 and arm64 three-node RLOG/security/MQTT
+and restart gates before manifest publication. The [tag's Community CI
+40113226794](https://github.com/YiuTerran/emqx-oss/actions/runs/40113226794)
+also succeeded after retrying a transient Hex dependency-fetch failure.
+
+Published image: `tryao/emqx-oss:5.8.9-build.6`. Immutable digests:
+
+| Manifest/platform | SHA-256 |
+| --- | --- |
+| Multi-architecture index | `40ffeefbf244ab965285d4799b1c713590e744315f9a57a151ff5f67ebea6ec8` |
+| linux/amd64 | `8bb4bb28b4d01dff407b947649afa1020964025428664193a03f1a88f62c6f67` |
+| linux/arm64 | `a9c6168d96ceb0a6a9350f7d819e24b6fe02b53577de531c9601e08775b484e1` |
+
+The Docker Hub image was pulled onto the local amd64 host and used to recreate
+only the isolated `emqx-security-it` cluster, retaining its existing data
+volumes. The older `emqx-cluster-it` build.3 cluster and its volumes were
+preserved. The final image passed:
+
+- All three nodes' RLOG/core membership and security-runtime assertions,
+  Dashboard v1.10.9 resources, login and nodes APIs.
+- All directed node pairs at MQTT QoS 0/1/2, retained messages, delivery with
+  emqx2 stopped, and repeat checks after restart/rejoin.
+- MQTT -> rule -> Kafka delivery with independent Kafka CLI consumption;
+  action metrics were matched=1, success=1, failed=0.
+- TLS 1.2 and TLS 1.3 cross-node MQTT QoS 0/1/2 with CA and hostname
+  verification. The bundled legacy test certificate lacks AKI, so Python's
+  additional `VERIFY_X509_STRICT` flag was disabled for this fixture only.
+
+This suffixed version does not move `latest`. The SBOM/image scan,
+Hackney/JOSE and durable-session scope limitations and Dashboard licensing
+boundary above still apply.
