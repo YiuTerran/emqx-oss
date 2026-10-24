@@ -10,7 +10,7 @@ x-environment: &environment
   ERL_FLAGS: '+S 2:2 +SDcpu 1 +SDio 1'
 
 x-node: &node
-  image: ${EMQX_IMAGE:-tryao/emqx-oss:5.8.9-build.4}
+  image: ${EMQX_IMAGE:-tryao/emqx-oss:5.8.9-build.5}
   ulimits:
     nofile:
       soft: 8192

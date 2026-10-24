@@ -33,6 +33,11 @@ jobs:
         run: make emqx-compile test-compile
       - name: Verify compiled security dependencies
         run: bash scripts/test/check-security-deps.sh
+      - name: Verify test template map support
+        run: |
+          erl -pa _build/test/lib/bbmustache/ebin -noshell -eval '
+            <<"ok">> = bbmustache:render(<<"{{name}}">>, #{<<"name">> => <<"ok">>}, [{key_type, binary}]),
+            halt().'
       - name: Run session registry regression tests
         run: ./rebar3 ct --name test@127.0.0.1 --suite apps/emqx/test/emqx_cm_registry_keeper_SUITE.erl
       - name: Run esockd file limit regression test

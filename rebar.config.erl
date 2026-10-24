@@ -49,7 +49,15 @@ overrides() ->
         %% OTP 27 retains format_status/2; legacy dependencies still implement it.
         {add, system_monitor, [{erl_opts, [nowarn_deprecated_callback]}]},
         %% bbmustache's legacy platform_define is unreliable on custom OTP versions.
-        {add, bbmustache, [{erl_opts, [{d, namespaced_types}]}]},
+        {override, bbmustache, [
+            {erl_opts, [
+                debug_info,
+                warnings_as_errors,
+                warn_export_all,
+                warn_untyped_record,
+                {d, namespaced_types}
+            ]}
+        ]},
         %% PropEr's own coverage-export plugin is not needed by the parent project.
         {override, proper, [{plugins, []}]}
     ] ++ snabbkaffe_overrides().
