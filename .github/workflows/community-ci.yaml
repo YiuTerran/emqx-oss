@@ -28,7 +28,14 @@ jobs:
       - name: Verify pinned Apache-2.0 security OTP builder
         run: check-emqx-otp
       - name: Compile community edition and tests
-        run: make emqx-compile test-compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          make emqx-compile test-compile 2>&1 | tee community-compile.log
+          # rebar3 may swallow plugin failures and leave stale compiler workers.
+          if grep -F 'Errors loading plugin' community-compile.log; then
+            exit 1
+          fi
       - name: Verify compiled security dependencies
         run: bash scripts/test/check-security-deps.sh
       - name: Verify test template map support

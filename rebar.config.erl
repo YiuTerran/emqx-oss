@@ -47,12 +47,20 @@ overrides() ->
     [
         {add, [{extra_src_dirs, [{"etc", [{recursive, true}]}]}]},
         %% OTP 27 retains format_status/2; legacy dependencies still implement it.
-        {add, system_monitor, [{erl_opts, [nowarn_deprecated_callback]}]}
+        {add, system_monitor, [{erl_opts, [nowarn_deprecated_callback]}]},
+        %% Plugin dependencies are resolved separately from the broker's pins.
+        %% Match its HOCON to the runtime version for OTP 27 parser support.
+        {override, emqx_plugrel, [
+            {deps, [
+                {hocon, {git, "https://github.com/emqx/hocon.git", {tag, "0.44.0"}}},
+                {erlavro, {git, "https://github.com/emqx/erlavro.git", {tag, "2.10.0"}}}
+            ]}
+        ]}
     ] ++ snabbkaffe_overrides().
 
 test_overrides() ->
     [
-        %% bbmustache's legacy platform_define is unreliable on custom OTP versions.
+        %% Keep map rendering enabled independently of legacy platform detection.
         {override, bbmustache, [
             {erl_opts, [
                 debug_info,
@@ -63,7 +71,8 @@ test_overrides() ->
             ]}
         ]},
         %% PropEr's own coverage-export plugin is not needed by the parent project.
-        {override, proper, [{plugins, []}]}
+        %% rebar3 installs dependency plugins from the per-profile key as well.
+        {override, proper, [{plugins, []}, {{plugins, default}, []}]}
     ].
 
 %% Temporary workaround for a rebar3 erl_opts duplication
