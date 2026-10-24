@@ -27,6 +27,7 @@ RUN mkdir -p /emqx-rel/emqx && \
     if [ -f "/${PROFILE}.tar.gz" ]; then \
       tar zxf "/${PROFILE}.tar.gz" -C /emqx-rel/emqx; \
     else \
+      erl +S 2:2 -noshell -eval 'mnesia_hook = mnesia_hook:module_info(module), halt().' && \
       if [ -f rebar-git-cache.tar ]; then \
         mkdir .cache && \
         tar -xf rebar-git-cache.tar -C .cache && \

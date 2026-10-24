@@ -106,3 +106,26 @@ rule_engine {
   ```
   ./scripts/ct/run.sh --app apps/emqx_bridge_kafka
   ```
+
+  To run the v2 producer suite directly against services on the host:
+
+  ```sh
+  PROFILE=emqx \
+  KAFKA_BOOTSTRAP_HOSTS=127.0.0.1:29092 \
+  KAFKA_SASL_BOOTSTRAP_HOSTS=127.0.0.1:29095 \
+  KAFKA_PROXY_BOOTSTRAP_HOSTS=127.0.0.1:29292 \
+  PROXY_HOST=127.0.0.1 PROXY_PORT=28474 \
+  SUITE=apps/emqx_bridge_kafka/test/emqx_bridge_kafka_v2_producer_SUITE.erl \
+  make ct-suite
+  ```
+
+  The plain and SCRAM-SHA-512 listeners must advertise addresses reachable from
+  the test process. The SCRAM listener needs user `emqxuser` with password
+  `password`. Pre-create `test-topic-one-partition` with one partition. Toxiproxy
+  needs proxies named `kafka_plain` and `kafka_2_plain`; the proxied Kafka listener
+  must also advertise a proxy address so metadata cannot bypass fault injection.
+  `TESTCASE=t_send_message,t_dynamic_topic` selects individual cases.
+
+  This suite checks real MQTT QoS 0/1/2 delivery, Kafka record keys, values and
+  headers, sync/async sends, dynamic topics, SCRAM authentication, connector
+  restarts, outage buffering and disk/hybrid replay after a connector restart.

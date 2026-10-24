@@ -47,6 +47,8 @@
 %% `wolff' acknowledgement callback
 -export([on_kafka_ack/3]).
 
+-export([handle_telemetry_event/4]).
+
 -ifdef(TEST).
 -export([
     replayq_dir/2,
@@ -62,6 +64,7 @@
 
 -define(kafka_client_id, kafka_client_id).
 -define(kafka_producers, kafka_producers).
+-define(kafka_telemetry_id, kafka_telemetry_id).
 
 %% Topic used to probe the connectivity of the cluster.  It does not need to
 %% exist: the probe only checks that metadata requests are answered.
@@ -161,7 +164,11 @@ on_stop(InstId, _State) ->
                     instance_id => InstId,
                     action_id => ActionResId
                 }),
-                deallocate_producers(Producers);
+                deallocate_producers(Producers),
+                emqx_resource:deallocate_resource(InstId, {?kafka_producers, ActionResId});
+            ({?kafka_telemetry_id, ActionResId}, TelemetryId) ->
+                _ = telemetry:detach(TelemetryId),
+                emqx_resource:deallocate_resource(InstId, {?kafka_telemetry_id, ActionResId});
             (_, _) ->
                 ok
         end,
@@ -196,18 +203,13 @@ on_add_channel(
     end.
 
 on_remove_channel(InstId, #{installed_channels := Channels} = OldState, ActionResId) ->
-    case maps:take(ActionResId, Channels) of
-        error ->
-            {ok, OldState};
-        {#{producers := Producers}, Channels1} ->
-            ?SLOG(debug, #{
-                msg => "removing_kafka_producers",
-                instance_id => InstId,
-                action_id => ActionResId
-            }),
-            deallocate_producers(Producers),
-            {ok, OldState#{installed_channels => Channels1}}
-    end.
+    ?SLOG(debug, #{
+        msg => "removing_kafka_producers",
+        instance_id => InstId,
+        action_id => ActionResId
+    }),
+    ok = remove_channel_resources(InstId, ActionResId),
+    {ok, OldState#{installed_channels => maps:remove(ActionResId, Channels)}}.
 
 on_get_channels(InstId) ->
     emqx_bridge_v2:get_channels_for_connector(InstId).
@@ -397,6 +399,25 @@ deallocate_producers(Producers) ->
     _ = wolff:stop_and_delete_supervised_producers(Producers),
     ok.
 
+remove_channel_resources(InstId, ActionResId) ->
+    Allocated = emqx_resource:get_allocated_resources(InstId),
+    ProducersKey = {?kafka_producers, ActionResId},
+    TelemetryKey = {?kafka_telemetry_id, ActionResId},
+    case maps:find(ProducersKey, Allocated) of
+        {ok, Producers} ->
+            deallocate_producers(Producers),
+            emqx_resource:deallocate_resource(InstId, ProducersKey);
+        error ->
+            ok
+    end,
+    case maps:find(TelemetryKey, Allocated) of
+        {ok, TelemetryId} ->
+            _ = telemetry:detach(TelemetryId),
+            emqx_resource:deallocate_resource(InstId, TelemetryKey);
+        error ->
+            ok
+    end.
+
 %%----------------------------------------------------------------------------------------
 %% Producers (channels)
 %%----------------------------------------------------------------------------------------
@@ -421,25 +442,38 @@ create_producers_for_channel(ConnResId, ActionResId, ClientId, ActionConfig) ->
         ok = assert_topic_and_leader_connections(ActionResId, ClientId, Topic, MaxPartitions),
         case wolff:ensure_supervised_dynamic_producers(ClientId, WolffProducerConfig) of
             {ok, Producers} ->
-                ok = add_fixed_topic(TopicTemplate, Producers),
                 ok = emqx_resource:allocate_resource(
                     ConnResId, {?kafka_producers, ActionResId}, Producers
                 ),
-                {ok, #{
-                    message_template => compile_message_template(
-                        maps:get(message, KafkaConfig, #{})
+                try
+                    ok = emqx_resource:allocate_resource(
+                        ConnResId, {?kafka_telemetry_id, ActionResId}, ActionResId
                     ),
-                    topic_template => TopicTemplate,
-                    topic => Topic,
-                    headers_template => HeadersTemplate,
-                    ext_headers_template => ExtHeadersTemplate,
-                    headers_encode_mode => HeadersEncodeMode,
-                    partitions_limit => MaxPartitions,
-                    sync_query_timeout => sync_query_timeout(ActionConfig),
-                    producers => Producers,
-                    action_resource_id => ActionResId,
-                    connector_resource_id => ConnResId
-                }};
+                    ok = install_telemetry_handlers(ActionResId),
+                    case add_fixed_topic(TopicTemplate, Producers) of
+                        ok -> ok;
+                        {error, TopicError} -> throw(TopicError)
+                    end,
+                    {ok, #{
+                        message_template => compile_message_template(
+                            maps:get(message, KafkaConfig, #{})
+                        ),
+                        topic_template => TopicTemplate,
+                        topic => Topic,
+                        headers_template => HeadersTemplate,
+                        ext_headers_template => ExtHeadersTemplate,
+                        headers_encode_mode => HeadersEncodeMode,
+                        partitions_limit => MaxPartitions,
+                        sync_query_timeout => sync_query_timeout(ActionConfig),
+                        producers => Producers,
+                        action_resource_id => ActionResId,
+                        connector_resource_id => ConnResId
+                    }}
+                catch
+                    Class:Reason:Stacktrace ->
+                        ok = remove_channel_resources(ConnResId, ActionResId),
+                        erlang:raise(Class, Reason, Stacktrace)
+                end;
             {error, StartError} ->
                 ?SLOG(error, #{
                     msg => "failed_to_start_kafka_producers",
@@ -816,7 +850,7 @@ merge_kafka_headers(HeadersTks, ExtHeaders, Msg) ->
         [undefined] ->
             ExtHeaders;
         [MaybeJson] when is_binary(MaybeJson) ->
-            case emqx_utils_json:safe_decode(MaybeJson) of
+            case emqx_utils_json:safe_decode(MaybeJson, [return_maps]) of
                 {ok, JsonTerm} when is_map(JsonTerm) ->
                     maps:to_list(JsonTerm) ++ ExtHeaders;
                 {ok, JsonTerm} when is_list(JsonTerm) ->
@@ -834,6 +868,8 @@ kvlist_headers([#{key := K, value := V} | Headers], Acc) ->
     kvlist_headers(Headers, [{K, V} | Acc]);
 kvlist_headers([#{<<"key">> := K, <<"value">> := V} | Headers], Acc) ->
     kvlist_headers(Headers, [{K, V} | Acc]);
+kvlist_headers([Map | Headers], Acc) when is_map(Map) ->
+    kvlist_headers(maps:to_list(Map) ++ Headers, Acc);
 kvlist_headers([{K, V} | Headers], Acc) ->
     kvlist_headers(Headers, [{K, V} | Acc]);
 kvlist_headers([KVList | Headers], Acc) when is_list(KVList) ->
@@ -859,6 +895,68 @@ formalize_kafka_headers(Headers, json) ->
         end,
         Headers
     ).
+
+%%----------------------------------------------------------------------------------------
+%% Wolff metrics
+%%----------------------------------------------------------------------------------------
+
+%% Every action receives the same events, so only count its own producer metrics.
+handle_telemetry_event(
+    [wolff, dropped_queue_full],
+    #{counter_inc := Val},
+    #{bridge_id := ID},
+    #{bridge_id := ID}
+) when is_integer(Val) ->
+    emqx_resource_metrics:dropped_queue_full_inc(ID, Val);
+handle_telemetry_event(
+    [wolff, queuing],
+    #{gauge_set := Val},
+    #{bridge_id := ID, partition_id := PartitionID},
+    #{bridge_id := ID}
+) when is_integer(Val) ->
+    emqx_resource_metrics:queuing_set(ID, PartitionID, Val);
+handle_telemetry_event(
+    [wolff, queuing_bytes],
+    #{gauge_set := Val},
+    #{bridge_id := ID, partition_id := PartitionID},
+    #{bridge_id := ID}
+) when is_integer(Val) ->
+    emqx_resource_metrics:queuing_bytes_set(ID, PartitionID, Val);
+handle_telemetry_event(
+    [wolff, retried],
+    #{counter_inc := Val},
+    #{bridge_id := ID},
+    #{bridge_id := ID}
+) when is_integer(Val) ->
+    emqx_resource_metrics:retried_inc(ID, Val);
+handle_telemetry_event(
+    [wolff, inflight],
+    #{gauge_set := Val},
+    #{bridge_id := ID, partition_id := PartitionID},
+    #{bridge_id := ID}
+) when is_integer(Val) ->
+    emqx_resource_metrics:inflight_set(ID, PartitionID, Val);
+handle_telemetry_event(_Event, _Measurements, _Metadata, _Config) ->
+    ok.
+
+install_telemetry_handlers(ActionResId) ->
+    case
+        telemetry:attach_many(
+            ActionResId,
+            [
+                [wolff, dropped_queue_full],
+                [wolff, queuing],
+                [wolff, queuing_bytes],
+                [wolff, retried],
+                [wolff, inflight]
+            ],
+            fun ?MODULE:handle_telemetry_event/4,
+            #{bridge_id => ActionResId}
+        )
+    of
+        ok -> ok;
+        {error, already_exists} -> ok
+    end.
 
 %%----------------------------------------------------------------------------------------
 %% Misc

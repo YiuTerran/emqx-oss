@@ -33,11 +33,10 @@
 
 -import(emqx_common_test_helpers, [on_exit/1]).
 
-%% Docker service names: the Kafka listener advertised to clients inside the
-%% CT container is `kafka-N.emqx.net', not localhost.
--define(KAFKA_HOSTS, [{"kafka-1.emqx.net", 9092}]).
+%% Override when running the suite against a broker on the host.
+-define(KAFKA_HOSTS, kpro:parse_endpoints(kafka_bootstrap_hosts())).
 %% SASL_PLAINTEXT listener.
--define(KAFKA_SASL_HOSTS, [{"kafka-1.emqx.net", 9093}]).
+-define(KAFKA_SASL_HOSTS, kpro:parse_endpoints(kafka_sasl_bootstrap_hosts())).
 -define(SCRAM_USER, <<"emqxuser">>).
 -define(SCRAM_PASSWORD, <<"password">>).
 -define(KAFKA_SASL_OPTS, [{sasl, {scram_sha_512, ?SCRAM_USER, ?SCRAM_PASSWORD}}]).
@@ -113,13 +112,22 @@ end_per_testcase(_TestCase, _Config) ->
 connector_config() ->
     connector_config(_Overrides = #{}).
 
+kafka_bootstrap_hosts() ->
+    os:getenv("KAFKA_BOOTSTRAP_HOSTS", "kafka-1.emqx.net:9092").
+
+kafka_sasl_bootstrap_hosts() ->
+    os:getenv("KAFKA_SASL_BOOTSTRAP_HOSTS", "kafka-1.emqx.net:9093").
+
+kafka_proxy_bootstrap_hosts() ->
+    os:getenv("KAFKA_PROXY_BOOTSTRAP_HOSTS", "toxiproxy.emqx.net:9292").
+
 connector_config(Overrides0) ->
     Overrides = emqx_utils_maps:binary_key_map(Overrides0),
     Defaults =
         #{
             <<"enable">> => true,
             <<"description">> => <<"kafka producer connector">>,
-            <<"bootstrap_hosts">> => <<"kafka-1.emqx.net:9092">>,
+            <<"bootstrap_hosts">> => list_to_binary(kafka_bootstrap_hosts()),
             <<"connect_timeout">> => <<"5s">>,
             <<"min_metadata_refresh_interval">> => <<"3s">>,
             <<"request_timeout">> => <<"15s">>,
@@ -244,7 +252,7 @@ action_status(Config) ->
 
 action_metric(Name, Config) ->
     {200, #{<<"metrics">> := Metrics}} = get_action_metrics_api(Config),
-    maps:get(Name, Metrics, 0).
+    maps:get(Name, Metrics).
 
 connect_client(ClientId) ->
     {ok, C} = emqtt:start_link(#{proto_ver => v5, clientid => ClientId}),
@@ -279,21 +287,34 @@ stop_kafka_client() ->
     _ = catch brod:stop_client(?KAFKA_CLIENT),
     ok.
 
-%% `brod' does not create the topic if it does not exist, so create it
-%% explicitly and ignore "already exists" errors.
+%% Listing all topics avoids triggering auto-creation before the explicit
+%% create request. Do not swallow failures: the consumer needs a ready topic.
 ensure_topic(Topic) ->
-    try
-        _ = brod:create_topics(
-            ?KAFKA_HOSTS,
-            [#{name => Topic, num_partitions => 1, replication_factor => 1}],
-            #{timeout => 10_000}
-        ),
-        ok
-    catch
-        Class:Reason ->
-            ct:pal("failed to create topic ~p: ~p:~p", [Topic, Class, Reason]),
-            ok
-    end.
+    {ok, #{topics := Topics}} = brod:get_metadata(?KAFKA_HOSTS, all),
+    case lists:any(fun(#{name := Name}) -> Name =:= Topic end, Topics) of
+        true ->
+            ok;
+        false ->
+            ok = brod:create_topics(
+                ?KAFKA_HOSTS,
+                [
+                    #{
+                        name => Topic,
+                        num_partitions => 1,
+                        replication_factor => 1,
+                        assignments => [],
+                        configs => []
+                    }
+                ],
+                #{timeout => 10_000}
+            )
+    end,
+    ?retry(
+        500,
+        20,
+        ?assertMatch({ok, _}, brod:get_partitions_count(?KAFKA_CLIENT, Topic))
+    ),
+    ok.
 
 %% Offsets from which to start consuming, i.e. the latest offsets at the time of
 %% the call.  Must be called *before* publishing, otherwise the published
@@ -460,6 +481,11 @@ t_create_via_http(Config) ->
 %% requires the connector implementation to emit a snabbkaffe trace event of the
 %% caller's choosing, and the Kafka producer implementation emits none.
 t_start_stop(Config) ->
+    RuleTopic = <<"t/kafka/restart">>,
+    ClientId = <<"emqx-kafka-ct-restart">>,
+    Before = unique_payload(<<"before-restart">>),
+    After = unique_payload(<<"after-restart">>),
+    ok = start_kafka_client(),
     ConnectorName = ?config(connector_name, Config),
     ConnectorType = ?config(connector_type, Config),
     {201, _} = create_connector_api(Config, #{}),
@@ -470,6 +496,11 @@ t_start_stop(Config) ->
         20,
         ?assertEqual({ok, connected}, emqx_resource_manager:health_check(ResourceId))
     ),
+    {ok, _} = create_rule_and_action_http(Config, RuleTopic, #{}),
+    Client = connect_client(ClientId),
+    Offsets = kafka_offsets(?TOPIC_1),
+    ok = publish(Client, RuleTopic, Before),
+    _ = recv_payload(?TOPIC_1, Offsets, Before),
     %% Disabling the connector also stops the action's channel.
     {ok, _} = emqx_connector:disable_enable(disable, ConnectorType, ConnectorName),
     ?retry(
@@ -489,22 +520,14 @@ t_start_stop(Config) ->
         20,
         ?assertEqual(<<"connected">>, action_status(Config))
     ),
+    ok = publish(Client, RuleTopic, After),
+    _ = recv_payload(?TOPIC_1, Offsets, After),
     ok.
 
-%% A message published to the rule topic is produced to Kafka with the default
-%% message templates (whole message as JSON value), and carries the configured
-%% extra header.
-t_send_message(Config) ->
-    ClientId = <<"emqx-kafka-ct-send">>,
-    Payload = unique_payload(<<"send">>),
-    RuleTopic = <<"t/kafka/send">>,
-    ok = start_kafka_client(),
-    ok = create_connector_and_action(Config, #{}, #{}),
-    {ok, _} = create_rule_and_action_http(Config, RuleTopic, #{}),
-    Offsets = kafka_offsets(?TOPIC_1),
-    Client = connect_client(ClientId),
-    ok = publish(Client, RuleTopic, Payload),
-    Predicate =
+recv_payload(Topic, Offsets, Payload) ->
+    recv_match(
+        Topic,
+        Offsets,
         fun(#kafka_message{value = Value}) ->
             case emqx_utils_json:safe_decode(Value, [return_maps]) of
                 {ok, Msg} when is_map(Msg) ->
@@ -513,7 +536,29 @@ t_send_message(Config) ->
                     false
             end
         end,
-    Msg = recv_match(?TOPIC_1, Offsets, Predicate, 30_000),
+        30_000
+    ).
+
+%% A message published to the rule topic is produced to Kafka with the default
+%% message templates (whole message as JSON value), and carries the configured
+%% extra header.
+t_send_message(Config) ->
+    send_message(Config, #{}).
+
+t_send_message_sync(Config) ->
+    send_message(Config, #{<<"resource_opts">> => #{<<"query_mode">> => <<"sync">>}}).
+
+send_message(Config, ActionOverrides) ->
+    ClientId = <<"emqx-kafka-ct-send">>,
+    Payload = unique_payload(<<"send">>),
+    RuleTopic = <<"t/kafka/send">>,
+    ok = start_kafka_client(),
+    ok = create_connector_and_action(Config, #{}, ActionOverrides),
+    {ok, _} = create_rule_and_action_http(Config, RuleTopic, #{}),
+    Offsets = kafka_offsets(?TOPIC_1),
+    Client = connect_client(ClientId),
+    ok = publish(Client, RuleTopic, Payload),
+    Msg = recv_payload(?TOPIC_1, Offsets, Payload),
     #kafka_message{key = Key, value = Value, headers = Headers} = Msg,
     %% `message.key' defaults to `${.clientid}'.
     ?assertEqual(ClientId, Key),
@@ -524,6 +569,77 @@ t_send_message(Config) ->
     ),
     %% Extra header from `kafka_ext_headers'.
     ?assertMatch({<<"clientid">>, ClientId}, lists:keyfind(<<"clientid">>, 1, Headers)),
+    ?retry(500, 20, ?assertEqual(1, action_metric(<<"success">>, Config))),
+    ok.
+
+t_json_headers(Config) ->
+    json_headers(Config, <<"none">>).
+
+t_json_headers_encoded(Config) ->
+    json_headers(Config, <<"json">>).
+
+json_headers(Config, EncodeMode) ->
+    RuleTopic = <<"t/kafka/headers">>,
+    ClientId = <<"emqx-kafka-ct-headers">>,
+    TraceId = unique_payload(<<"trace">>),
+    Payload = emqx_utils_json:encode(#{trace => TraceId, count => 42}),
+    ok = start_kafka_client(),
+    ok = create_connector_and_action(
+        Config,
+        #{},
+        #{
+            <<"parameters">> => #{
+                <<"kafka_headers">> => <<"${payload}">>,
+                <<"kafka_header_value_encode_mode">> => EncodeMode,
+                <<"message">> => #{<<"value">> => <<"${payload}">>}
+            }
+        }
+    ),
+    {ok, _} = create_rule_and_action_http(Config, RuleTopic, #{}),
+    Offsets = kafka_offsets(?TOPIC_1),
+    Client = connect_client(ClientId),
+    ok = publish(Client, RuleTopic, Payload),
+    [#kafka_message{headers = Headers}] = recv_values(?TOPIC_1, Offsets, [Payload], 30_000),
+    ExpectedHeaders =
+        case EncodeMode of
+            <<"none">> ->
+                [{<<"trace">>, TraceId}, {<<"clientid">>, ClientId}];
+            <<"json">> ->
+                [
+                    {<<"trace">>, emqx_utils_json:encode(TraceId)},
+                    {<<"count">>, <<"42">>},
+                    {<<"clientid">>, emqx_utils_json:encode(ClientId)}
+                ]
+        end,
+    ?assertEqual(lists:sort(ExpectedHeaders), lists:sort(Headers)),
+    ?retry(500, 20, ?assertEqual(1, action_metric(<<"success">>, Config))),
+    ok.
+
+%% Verify broker delivery as well as Kafka forwarding using actual MQTT clients.
+t_mqtt_roundtrip(_Config) ->
+    Subscriber = connect_client(<<"emqx-kafka-ct-sub">>),
+    Publisher = connect_client(<<"emqx-kafka-ct-pub">>),
+    lists:foreach(
+        fun(QoS) ->
+            Topic = <<"t/kafka/roundtrip/", (integer_to_binary(QoS))/binary>>,
+            Payload = unique_payload(<<"mqtt">>),
+            {ok, _, [QoS]} = emqtt:subscribe(Subscriber, Topic, QoS),
+            Result = emqtt:publish(Publisher, Topic, Payload, [{qos, QoS}]),
+            case QoS of
+                0 -> ?assertEqual(ok, Result);
+                _ -> ?assertMatch({ok, _}, Result)
+            end,
+            receive
+                {publish, #{
+                    client_pid := Subscriber, topic := Topic, payload := Payload, qos := QoS
+                }} ->
+                    ok
+            after 10_000 ->
+                ct:fail({mqtt_delivery_timeout, QoS})
+            end
+        end,
+        [0, 1, 2]
+    ),
     ok.
 
 %% The topic may be a template; messages must land in the rendered topic.
@@ -561,7 +677,7 @@ t_scram_auth(Config) ->
     ok = create_connector_and_action(
         Config,
         #{
-            <<"bootstrap_hosts">> => <<"kafka-1.emqx.net:9093">>,
+            <<"bootstrap_hosts">> => list_to_binary(kafka_sasl_bootstrap_hosts()),
             <<"authentication">> =>
                 #{
                     <<"mechanism">> => <<"scram_sha_512">>,
@@ -594,7 +710,7 @@ t_connection_failure_buffering(Config) ->
     ok = start_kafka_client(),
     ok = create_connector_and_action(
         Config,
-        #{<<"bootstrap_hosts">> => <<"toxiproxy.emqx.net:9292">>},
+        #{<<"bootstrap_hosts">> => list_to_binary(kafka_proxy_bootstrap_hosts())},
         #{<<"parameters">> => #{<<"message">> => #{<<"value">> => <<"${payload}">>}}}
     ),
     {ok, _} = create_rule_and_action_http(Config, RuleTopic, #{}),
@@ -629,6 +745,49 @@ t_connection_failure_buffering(Config) ->
     ),
     Msgs = recv_values(?TOPIC_1, Offsets, Payloads, 60_000),
     ?assertEqual(length(Payloads), length(Msgs)),
+    ?retry(500, 20, ?assertEqual(length(Payloads), action_metric(<<"success">>, Config))),
+    ?retry(500, 20, ?assertEqual(0, action_metric(<<"queuing">>, Config))),
+    ok.
+
+%% Pending records must survive stopping and starting the connector, including
+%% reopening the replayq files with a new wolff producer process.
+t_disk_buffer_restart(Config) ->
+    buffer_restart(Config, <<"disk">>).
+
+t_hybrid_buffer_restart(Config) ->
+    buffer_restart(Config, <<"hybrid">>).
+
+buffer_restart(Config, BufferMode) ->
+    ClientId = <<"emqx-kafka-ct-replay">>,
+    RuleTopic = <<"t/kafka/replay">>,
+    Payloads = [unique_payload(<<"replay">>) || _ <- lists:seq(1, 5)],
+    ok = start_kafka_client(),
+    ok = create_connector_and_action(
+        Config,
+        #{<<"bootstrap_hosts">> => list_to_binary(kafka_proxy_bootstrap_hosts())},
+        #{
+            <<"parameters">> => #{
+                <<"buffer">> => #{<<"mode">> => BufferMode},
+                <<"message">> => #{<<"value">> => <<"${payload}">>}
+            }
+        }
+    ),
+    {ok, _} = create_rule_and_action_http(Config, RuleTopic, #{}),
+    Offsets = kafka_offsets(?TOPIC_1),
+    Client = connect_client(ClientId),
+    ok = cut_kafka_proxies(),
+    ?retry(500, 60, ?assert(is_disconnected_status(action_status(Config)))),
+    lists:foreach(fun(Payload) -> ok = publish(Client, RuleTopic, Payload) end, Payloads),
+    ?retry(500, 20, ?assertEqual(length(Payloads), action_metric(<<"queuing">>, Config))),
+    Type = ?config(connector_type, Config),
+    Name = ?config(connector_name, Config),
+    {ok, _} = emqx_connector:disable_enable(disable, Type, Name),
+    ok = heal_kafka_proxies(),
+    {ok, _} = emqx_connector:disable_enable(enable, Type, Name),
+    ?retry(1_000, 20, ?assertEqual(<<"connected">>, action_status(Config))),
+    Msgs = recv_values(?TOPIC_1, Offsets, Payloads, 30_000),
+    ?assertEqual(length(Payloads), length(Msgs)),
+    ?retry(500, 20, ?assertEqual(0, action_metric(<<"queuing">>, Config))),
     ok.
 
 %% Deleting the action and then the connector must get rid of both.

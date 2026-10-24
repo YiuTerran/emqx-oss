@@ -22,8 +22,12 @@
 connector_registered_test() ->
     ?assert(lists:member(kafka_producer, emqx_connector_info:connector_types())),
     ?assertEqual(
-        emqx_bridge_kafka,
+        emqx_bridge_kafka_producer_schema,
         emqx_connector_info:schema_module(kafka_producer)
+    ),
+    ?assertEqual(
+        "bridge_kafka_producer",
+        (emqx_connector_info:schema_module(kafka_producer)):namespace()
     ).
 
 action_registered_test() ->
@@ -34,9 +38,13 @@ action_registered_test() ->
     ),
     ?assert(
         lists:member(
-            emqx_bridge_kafka,
+            emqx_bridge_kafka_producer_schema,
             [Module || {_Type, Module} <- emqx_action_info:registered_schema_modules_actions()]
         )
+    ),
+    ?assertEqual(
+        "bridge_kafka_producer",
+        emqx_bridge_kafka_producer_schema:namespace()
     ).
 
 %% Rules may refer to the action as `kafka:<name>', the v1 bridge type name.

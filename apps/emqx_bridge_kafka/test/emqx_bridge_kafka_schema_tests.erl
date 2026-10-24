@@ -73,13 +73,21 @@ parse_opts() ->
     #{required => false, atom_key => false, make_serializable => false}.
 
 expect_invalid(Fun) ->
-    try
-        Fun(),
-        ?assert(false)
-    catch
-        _:_ ->
-            ok
-    end.
+    Result =
+        try
+            Fun(),
+            accepted
+        catch
+            throw:{Schema, Errors} when is_atom(Schema), is_list(Errors) ->
+                rejected
+        end,
+    ?assertEqual(rejected, Result).
+
+expect_invalid_acceptance_test() ->
+    ?assertError(
+        {assertEqual, _},
+        expect_invalid(fun() -> ok end)
+    ).
 
 %%------------------------------------------------------------------------------
 %% Connector schema
@@ -101,11 +109,29 @@ connector_defaults_test() ->
     ?assertMatch(#{<<"ssl">> := #{<<"enable">> := false}}, Conf).
 
 connector_bootstrap_hosts_test() ->
+    ?assertEqual(
+        [{"host1", 9092}, {"host2", 9093}],
+        emqx_bridge_kafka_impl:hosts(
+            maps:get(
+                <<"bootstrap_hosts">>,
+                parse_connector(#{<<"bootstrap_hosts">> => [<<"host1:9092">>, <<"host2:9093">>]})
+            )
+        )
+    ),
     ?assertMatch(
-        #{<<"bootstrap_hosts">> := _},
+        #{<<"bootstrap_hosts">> := <<"host1:9092,host2:9092">>},
         parse_connector(#{<<"bootstrap_hosts">> => <<"host1:9092,host2:9092">>})
     ),
-    expect_invalid(fun() -> parse_connector(#{<<"bootstrap_hosts">> => <<"not a host">>}) end).
+    ?assertMatch(
+        #{<<"bootstrap_hosts">> := <<"host1">>},
+        parse_connector(#{<<"bootstrap_hosts">> => <<"host1">>})
+    ),
+    lists:foreach(
+        fun(Hosts) ->
+            expect_invalid(fun() -> parse_connector(#{<<"bootstrap_hosts">> => Hosts}) end)
+        end,
+        [<<"not a host">>, <<>>, <<"localhost:not-a-port">>, <<"localhost:65536">>]
+    ).
 
 connector_auth_plain_test() ->
     Conf = parse_connector(#{

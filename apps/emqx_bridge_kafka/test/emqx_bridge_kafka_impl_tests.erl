@@ -16,6 +16,7 @@
 -module(emqx_bridge_kafka_impl_tests).
 
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("emqx_resource/include/emqx_resource.hrl").
 
 -import(emqx_bridge_kafka_impl_producer, [
     compile_message_template/1,
@@ -251,6 +252,20 @@ render_headers_undefined_test() ->
     ),
     ?assertEqual([], Headers).
 
+render_headers_json_key_value_test() ->
+    Headers = render_headers(
+        emqx_placeholder:preproc_tmpl(<<"${pub_props}">>),
+        [],
+        none,
+        #{
+            pub_props => <<
+                "[{\"key\":\"trace-id\",\"value\":\"123\"},"
+                "{\"key\":\"trace-id\",\"value\":\"456\"}]"
+            >>
+        }
+    ),
+    ?assertEqual([{<<"trace-id">>, <<"123">>}, {<<"trace-id">>, <<"456">>}], Headers).
+
 render_headers_bad_test() ->
     ?assertThrow(
         {bad_kafka_headers, _},
@@ -363,6 +378,15 @@ producers_config(Overrides) ->
     producers_config(Overrides, false).
 
 producers_config(Overrides, IsDryRun) ->
+    emqx_bridge_kafka_impl_producer:producers_config(
+        <<"kafka_producer">>,
+        <<"my-action">>,
+        kafka_config(Overrides),
+        IsDryRun,
+        <<"action:kafka_producer:my-action">>
+    ).
+
+kafka_config(Overrides) ->
     DefaultBuffer = #{
         mode => memory,
         per_partition_limit => 100,
@@ -384,16 +408,184 @@ producers_config(Overrides, IsDryRun) ->
         },
         maps:remove(buffer, Overrides)
     ),
-    Input = Input0#{
+    Input0#{
         buffer => maps:merge(DefaultBuffer, maps:get(buffer, Overrides, #{}))
-    },
-    emqx_bridge_kafka_impl_producer:producers_config(
-        <<"kafka_producer">>,
-        <<"my-action">>,
-        Input,
-        IsDryRun,
-        <<"action:kafka_producer:my-action">>
-    ).
+    }.
+
+%%------------------------------------------------------------------------------
+%% Producer lifecycle and telemetry
+%%------------------------------------------------------------------------------
+
+retry_metric_test() ->
+    ?assert(lists:member([emqx, resource, retried], emqx_resource_metrics:events())),
+    ActionId = <<"action:kafka_producer:retry-metric">>,
+    ok = meck:new(emqx_metrics_worker, [no_link]),
+    meck:expect(emqx_metrics_worker, inc, fun(?RES_METRICS, ID, retried, Val) ->
+        ?assertEqual(ActionId, ID),
+        ?assertEqual(3, Val),
+        ok
+    end),
+    try
+        ok = emqx_resource_metrics:handle_telemetry_event(
+            [emqx, resource, retried],
+            #{counter_inc => 3},
+            #{resource_id => ActionId},
+            #{}
+        ),
+        ?assertEqual(1, meck:num_calls(emqx_metrics_worker, inc, '_')),
+        ?assert(meck:validate(emqx_metrics_worker))
+    after
+        meck:unload(emqx_metrics_worker)
+    end.
+
+telemetry_lifecycle_test() ->
+    with_mocked_kafka(fun(ConnId, State0) ->
+        Action1 = <<"action:kafka_producer:metrics-1">>,
+        Action2 = <<"action:kafka_producer:metrics-2">>,
+        {ok, State1} = add_channel(ConnId, State0, Action1),
+        {ok, State1} = add_channel(ConnId, State1, Action1),
+        ?assertEqual(1, length(action_handlers(Action1))),
+        {ok, State2} = add_channel(ConnId, State1, Action2),
+        Self = self(),
+        HandlerId = {?MODULE, resource_metrics},
+        ok = telemetry:attach_many(
+            HandlerId,
+            [
+                [emqx, resource, dropped_queue_full],
+                [emqx, resource, queuing],
+                [emqx, resource, queuing_bytes],
+                [emqx, resource, retried],
+                [emqx, resource, inflight]
+            ],
+            fun(Event, Measurements, Metadata, _) ->
+                Self ! {resource_metric, Event, Measurements, Metadata}
+            end,
+            undefined
+        ),
+        try
+            lists:foreach(
+                fun({Metric, Measurements}) ->
+                    telemetry:execute(
+                        [wolff, Metric],
+                        Measurements,
+                        #{bridge_id => Action1, partition_id => 0}
+                    ),
+                    receive
+                        {resource_metric, [emqx, resource, Metric], Measurements, Metadata} ->
+                            ?assertEqual(Action1, maps:get(resource_id, Metadata)),
+                            case Measurements of
+                                #{gauge_set := _} ->
+                                    ?assertEqual(0, maps:get(worker_id, Metadata));
+                                _ ->
+                                    ok
+                            end
+                    after 1000 ->
+                        ?assert(false)
+                    end
+                end,
+                [
+                    {dropped_queue_full, #{counter_inc => 2}},
+                    {queuing, #{gauge_set => 3}},
+                    {queuing_bytes, #{gauge_set => 1024}},
+                    {retried, #{counter_inc => 4}},
+                    {inflight, #{gauge_set => 5}}
+                ]
+            ),
+            %% The second action must not forward any of the first one's metrics.
+            receive
+                {resource_metric, _, _, _} -> ?assert(false)
+            after 0 ->
+                ok
+            end,
+            {ok, State3} = emqx_bridge_kafka_impl_producer:on_remove_channel(
+                ConnId, State2, Action1
+            ),
+            ?assertEqual([], action_handlers(Action1)),
+            ?assertEqual(2, map_size(emqx_resource:get_allocated_resources(ConnId))),
+            {ok, State4} = add_channel(ConnId, State3, Action1),
+            ?assertEqual(1, length(action_handlers(Action1))),
+            ok = emqx_bridge_kafka_impl_producer:on_stop(ConnId, State4),
+            ?assertEqual([], action_handlers(Action1)),
+            ?assertEqual([], action_handlers(Action2)),
+            ?assertEqual(#{}, emqx_resource:get_allocated_resources(ConnId)),
+            ok = emqx_bridge_kafka_impl_producer:on_stop(ConnId, State4),
+            ?assertEqual(3, meck:num_calls(wolff, stop_and_delete_supervised_producers, '_'))
+        after
+            telemetry:detach(HandlerId)
+        end
+    end).
+
+failed_topic_cleanup_test() ->
+    with_mocked_kafka(fun(ConnId, State) ->
+        ActionId = <<"action:kafka_producer:failed-topic">>,
+        meck:expect(wolff, add_topic, fun(_, _) -> {error, topic_creation_failed} end),
+        ?assertEqual(
+            {error, topic_creation_failed},
+            add_channel(ConnId, State, ActionId)
+        ),
+        ?assertEqual(#{}, emqx_resource:get_allocated_resources(ConnId)),
+        ?assertEqual([], action_handlers(ActionId)),
+        ?assertEqual(1, meck:num_calls(wolff, stop_and_delete_supervised_producers, '_')),
+        meck:expect(wolff, add_topic, fun(_, _) -> error(topic_creation_exception) end),
+        ?assertError(topic_creation_exception, add_channel(ConnId, State, ActionId)),
+        ?assertEqual(#{}, emqx_resource:get_allocated_resources(ConnId)),
+        ?assertEqual([], action_handlers(ActionId)),
+        ?assertEqual(2, meck:num_calls(wolff, stop_and_delete_supervised_producers, '_')),
+        meck:expect(wolff, add_topic, fun(_, _) -> ok end),
+        {ok, _} = add_channel(ConnId, State, ActionId),
+        %% Cleanup must also work if a channel was never saved in the state.
+        {ok, State} = emqx_bridge_kafka_impl_producer:on_remove_channel(
+            ConnId, State, ActionId
+        ),
+        ?assertEqual(#{}, emqx_resource:get_allocated_resources(ConnId)),
+        ?assertEqual([], action_handlers(ActionId))
+    end).
+
+add_channel(ConnId, State, ActionId) ->
+    emqx_bridge_kafka_impl_producer:on_add_channel(ConnId, State, ActionId, #{
+        bridge_type => kafka_producer,
+        bridge_name => <<"unit-test">>,
+        parameters => (kafka_config(#{}))#{topic => <<"test-topic">>}
+    }).
+
+action_handlers(ActionId) ->
+    [
+        Handler
+     || #{id := Id} = Handler <- telemetry:list_handlers([wolff, queuing]),
+        Id =:= ActionId
+    ].
+
+with_mocked_kafka(Fun) ->
+    {ok, _} = application:ensure_all_started(telemetry),
+    OwnTable = ets:whereis(?RESOURCE_ALLOCATION_TAB) =:= undefined,
+    case OwnTable of
+        true -> ets:new(?RESOURCE_ALLOCATION_TAB, [named_table, bag, public]);
+        false -> ok
+    end,
+    ConnId = <<"connector:kafka_producer:unit-test">>,
+    Mocked = [wolff, wolff_client_sup, wolff_client],
+    ok = meck:new(Mocked, [no_link]),
+    meck:expect(wolff_client_sup, find_client, fun(_) -> {ok, self()} end),
+    meck:expect(wolff_client, check_topic_exists_with_client_pid, fun(_, _) -> ok end),
+    meck:expect(wolff_client, get_leader_connections, fun(_, _, _, _) ->
+        {ok, [{0, self()}]}
+    end),
+    meck:expect(wolff, ensure_supervised_dynamic_producers, fun(_, Config) ->
+        {ok, #{group => maps:get(group, Config)}}
+    end),
+    meck:expect(wolff, add_topic, fun(_, _) -> ok end),
+    meck:expect(wolff, stop_and_delete_supervised_producers, fun(_) -> ok end),
+    try
+        Fun(ConnId, #{client_id => ConnId, installed_channels => #{}})
+    after
+        emqx_bridge_kafka_impl_producer:on_stop(ConnId, undefined),
+        emqx_resource:forget_allocated_resources(ConnId),
+        meck:unload(Mocked),
+        case OwnTable of
+            true -> ets:delete(?RESOURCE_ALLOCATION_TAB);
+            false -> ok
+        end
+    end.
 
 %%------------------------------------------------------------------------------
 %% Reply handling

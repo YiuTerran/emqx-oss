@@ -1,0 +1,66 @@
+name: emqx-cluster-it
+
+x-environment: &environment
+  EMQX_NODE__COOKIE: ${EMQX_CLUSTER_COOKIE:-emqx-local-cluster-test-cookie}
+  EMQX_NODE__DB_BACKEND: rlog
+  EMQX_NODE__ROLE: core
+  EMQX_CLUSTER__DISCOVERY_STRATEGY: static
+  EMQX_CLUSTER__STATIC__SEEDS: '["emqx@emqx1","emqx@emqx2","emqx@emqx3"]'
+  EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:-public}
+  ERL_FLAGS: '+S 2:2 +SDcpu 1 +SDio 1'
+
+x-node: &node
+  image: ${EMQX_IMAGE:-tryao/emqx-oss:5.8.9-build.2}
+  networks: [cluster]
+  healthcheck:
+    test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
+    interval: 10s
+    timeout: 10s
+    retries: 18
+    start_period: 20s
+  stop_grace_period: 30s
+
+services:
+  emqx1:
+    <<: *node
+    hostname: emqx1
+    environment:
+      <<: *environment
+      EMQX_NODE__NAME: emqx@emqx1
+    ports:
+      - "127.0.0.1:21881:1883"
+      - "127.0.0.1:28081:18083"
+    volumes:
+      - emqx1-data:/opt/emqx/data
+
+  emqx2:
+    <<: *node
+    hostname: emqx2
+    environment:
+      <<: *environment
+      EMQX_NODE__NAME: emqx@emqx2
+    ports:
+      - "127.0.0.1:21882:1883"
+      - "127.0.0.1:28082:18083"
+    volumes:
+      - emqx2-data:/opt/emqx/data
+
+  emqx3:
+    <<: *node
+    hostname: emqx3
+    environment:
+      <<: *environment
+      EMQX_NODE__NAME: emqx@emqx3
+    ports:
+      - "127.0.0.1:21883:1883"
+      - "127.0.0.1:28083:18083"
+    volumes:
+      - emqx3-data:/opt/emqx/data
+
+networks:
+  cluster:
+
+volumes:
+  emqx1-data:
+  emqx2-data:
+  emqx3-data:

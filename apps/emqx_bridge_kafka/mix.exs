@@ -26,7 +26,7 @@ defmodule EMQXBridgeKafka.MixProject do
       {:emqx, in_umbrella: true},
       {:emqx_resource, in_umbrella: true},
       {:emqx_connector, in_umbrella: true, runtime: false},
-      {:emqx_bridge, in_umbrella: true},
+      {:emqx_bridge, in_umbrella: true, runtime: false},
       UMP.common_dep(:wolff),
       UMP.common_dep(:kafka_protocol),
       UMP.common_dep(:brod_gssapi),

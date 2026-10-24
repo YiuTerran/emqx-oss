@@ -328,9 +328,13 @@ fields(auth_gssapi_kerberos) ->
 connector_fields() ->
     [
         {bootstrap_hosts,
-            mk(emqx_schema:comma_separated_list(), #{
+            mk(binary(), #{
                 required => true,
-                desc => ?DESC(bootstrap_hosts)
+                desc => ?DESC(bootstrap_hosts),
+                converter => fun emqx_schema:convert_servers/2,
+                validator => emqx_schema:servers_validator(
+                    #{default_port => 9092}, true
+                )
             })},
         {connect_timeout,
             mk(emqx_schema:duration_ms(), #{

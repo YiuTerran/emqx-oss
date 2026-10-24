@@ -187,8 +187,12 @@ defmodule EMQXUmbrella.MixProject do
   end
 
   def common_dep(:ekka), do: {:ekka, github: "emqx/ekka", tag: "0.23.2", override: true}
+
   def common_dep(:esockd),
-    do: {:esockd, github: "emqx/esockd", ref: "a638fcd78a5fd3898b43d50eb55d734f78d884f5", override: true}
+    do:
+      {:esockd,
+       github: "emqx/esockd", ref: "a638fcd78a5fd3898b43d50eb55d734f78d884f5", override: true}
+
   def common_dep(:gproc), do: {:gproc, "1.0.0", override: true}
   def common_dep(:hocon), do: {:hocon, github: "emqx/hocon", tag: "0.44.0", override: true}
   def common_dep(:lc), do: {:lc, github: "emqx/lc", tag: "0.3.5", override: true}
@@ -243,9 +247,7 @@ defmodule EMQXUmbrella.MixProject do
     do: {:minirest, github: "emqx/minirest", tag: "1.4.8", override: true}
 
   def common_dep(:emqtt),
-    do:
-      {:emqtt,
-       github: "emqx/emqtt", tag: "1.14.6", override: true, system_env: no_quic_env()}
+    do: {:emqtt, github: "emqx/emqtt", tag: "1.14.6", override: true, system_env: no_quic_env()}
 
   def common_dep(:typerefl),
     do: {:typerefl, github: "ieQu1/typerefl", tag: "0.9.6", override: true}
@@ -521,7 +523,7 @@ defmodule EMQXUmbrella.MixProject do
             :emqx_slow_subs,
             :emqx_plugins,
             :emqx_durable_storage,
-            :emqx_ds_builtin_local,
+            :emqx_ds_builtin_local
           ],
           steps: steps,
           strip_beams: false
