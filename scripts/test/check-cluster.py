@@ -34,7 +34,7 @@ def compose(project, *args, timeout=60):
 
 
 def wait_for_cluster(project):
-    expected = "['emqx@emqx1','emqx@emqx2','emqx@emqx3']"
+    expected = "['emqx@emqx1.emqx.local','emqx@emqx2.emqx.local','emqx@emqx3.emqx.local']"
     expression = (
         "mnesia_hook = mnesia_hook:module_info(module), "
         "rlog = mria_config:backend(), core = mria_config:role(), "
@@ -94,7 +94,7 @@ def check_dashboard():
             raise RuntimeError(f"dashboard {port}: custom Kafka UI missing")
         login = json.loads(api(port, "/api/v5/login", {"username": "admin", "password": password}))
         nodes = json.loads(api(port, "/api/v5/nodes", token=login["token"]))
-        if {node["node"] for node in nodes} != {f"emqx@{name}" for name in NODES}:
+        if {node["node"] for node in nodes} != {f"emqx@{name}.emqx.local" for name in NODES}:
             raise RuntimeError(f"dashboard {port}: API does not report all three nodes: {nodes}")
     print(f"PASS all three dashboards: {expected}, Kafka bundle, login and nodes API", flush=True)
 

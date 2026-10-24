@@ -34,20 +34,20 @@ EMQX_IMAGE_TAG=tryao/emqx-oss:local make emqx-docker
 
 镜像包含本仓库的社区版后端和 `YiuTerran/emqx-dashboard-oss` 发布的自定义 Dashboard。Dashboard 版本由 `Makefile` 的 `EMQX_DASHBOARD_VERSION` 固定，当前为 `v1.10.6`，包含 Kafka 入口和复制认证连接器时的密码处理修复。
 
-发布顺序为：先发布 Dashboard tag，等待其 zip asset 生成，再提交后端修改并推送后端版本 tag。后端 GitHub Actions 会校验源码 tag 与包版本，构建 amd64/arm64 镜像，将 staging 镜像推送到 Docker Hub，并在三节点 RLOG 集群验证通过后发布多架构版本 tag。带 `-` 的版本（例如 `v5.8.9-build.2`）不会移动 `latest`。Docker Hub 凭据和镜像名使用仓库 `deploy` 环境中的 `DOCKERHUB_USERNAME`、`DOCKERHUB_TOKEN` 和 `DOCKERHUB_IMAGE`。
+发布顺序为：先发布 Dashboard tag，等待其 zip asset 生成，再提交后端修改并推送后端版本 tag。后端 GitHub Actions 会校验源码 tag 与包版本，构建 amd64/arm64 镜像，将 staging 镜像推送到 Docker Hub，并在三节点 RLOG 集群验证通过后发布多架构版本 tag。带 `-` 的版本（例如 `v5.8.9-build.3`）不会移动 `latest`。Docker Hub 凭据和镜像名使用仓库 `deploy` 环境中的 `DOCKERHUB_USERNAME`、`DOCKERHUB_TOKEN` 和 `DOCKERHUB_IMAGE`。
 
 ## 本地三节点集群验证
 
 在仓库根目录运行，使用已发布的整体镜像：
 
 ```bash
-export EMQX_IMAGE=tryao/emqx-oss:5.8.9-build.2
+export EMQX_IMAGE=tryao/emqx-oss:5.8.9-build.3
 docker compose -p emqx-cluster-it -f deploy/docker/compose.cluster.yaml pull
 docker compose -p emqx-cluster-it -f deploy/docker/compose.cluster.yaml up -d --wait --wait-timeout 180
 python3 scripts/test/check-cluster.py --restart-node
 ```
 
-Compose 使用三个 core 节点、RLOG、静态发现和各自的数据卷。验证脚本要求三个节点均包含 `mnesia_hook` 且实际启用 RLOG，检查 Dashboard 的版本、Kafka bundle、登录和集群 API，完成所有节点对之间的 MQTT QoS 0/1/2 收发及保留消息检查，再停止第二个节点验证其余节点继续收发，最后启动该节点并检查重新入群和消息恢复。脚本只使用 Python 3.9+ 标准库。
+Compose 使用三个 core 节点、RLOG、静态发现和各自的数据卷。节点使用 `emqx@emqx1.emqx.local` 等完整域名，并配置相应的 Docker 网络别名，以满足 Erlang 长节点名的要求。验证脚本要求三个节点均包含 `mnesia_hook` 且实际启用 RLOG，检查 Dashboard 的版本、Kafka bundle、登录和集群 API，完成所有节点对之间的 MQTT QoS 0/1/2 收发及保留消息检查，再停止第二个节点验证其余节点继续收发，最后启动该节点并检查重新入群和消息恢复。脚本只使用 Python 3.9+ 标准库。
 
 | 节点 | MQTT | Dashboard |
 | --- | --- | --- |

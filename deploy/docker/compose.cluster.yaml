@@ -5,12 +5,12 @@ x-environment: &environment
   EMQX_NODE__DB_BACKEND: rlog
   EMQX_NODE__ROLE: core
   EMQX_CLUSTER__DISCOVERY_STRATEGY: static
-  EMQX_CLUSTER__STATIC__SEEDS: '["emqx@emqx1","emqx@emqx2","emqx@emqx3"]'
+  EMQX_CLUSTER__STATIC__SEEDS: '["emqx@emqx1.emqx.local","emqx@emqx2.emqx.local","emqx@emqx3.emqx.local"]'
   EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:-public}
   ERL_FLAGS: '+S 2:2 +SDcpu 1 +SDio 1'
 
 x-node: &node
-  image: ${EMQX_IMAGE:-tryao/emqx-oss:5.8.9-build.2}
+  image: ${EMQX_IMAGE:-tryao/emqx-oss:5.8.9-build.3}
   networks: [cluster]
   healthcheck:
     test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
@@ -23,10 +23,13 @@ x-node: &node
 services:
   emqx1:
     <<: *node
-    hostname: emqx1
+    hostname: emqx1.emqx.local
     environment:
       <<: *environment
-      EMQX_NODE__NAME: emqx@emqx1
+      EMQX_NODE__NAME: emqx@emqx1.emqx.local
+    networks:
+      cluster:
+        aliases: [emqx1.emqx.local]
     ports:
       - "127.0.0.1:21881:1883"
       - "127.0.0.1:28081:18083"
@@ -35,10 +38,13 @@ services:
 
   emqx2:
     <<: *node
-    hostname: emqx2
+    hostname: emqx2.emqx.local
     environment:
       <<: *environment
-      EMQX_NODE__NAME: emqx@emqx2
+      EMQX_NODE__NAME: emqx@emqx2.emqx.local
+    networks:
+      cluster:
+        aliases: [emqx2.emqx.local]
     ports:
       - "127.0.0.1:21882:1883"
       - "127.0.0.1:28082:18083"
@@ -47,10 +53,13 @@ services:
 
   emqx3:
     <<: *node
-    hostname: emqx3
+    hostname: emqx3.emqx.local
     environment:
       <<: *environment
-      EMQX_NODE__NAME: emqx@emqx3
+      EMQX_NODE__NAME: emqx@emqx3.emqx.local
+    networks:
+      cluster:
+        aliases: [emqx3.emqx.local]
     ports:
       - "127.0.0.1:21883:1883"
       - "127.0.0.1:28083:18083"
