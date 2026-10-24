@@ -10,7 +10,11 @@ x-environment: &environment
   ERL_FLAGS: '+S 2:2 +SDcpu 1 +SDio 1'
 
 x-node: &node
-  image: ${EMQX_IMAGE:-tryao/emqx-oss:5.8.9-build.3}
+  image: ${EMQX_IMAGE:-tryao/emqx-oss:5.8.9-build.4}
+  ulimits:
+    nofile:
+      soft: 8192
+      hard: 8192
   networks: [cluster]
   healthcheck:
     test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
@@ -31,8 +35,8 @@ services:
       cluster:
         aliases: [emqx1.emqx.local]
     ports:
-      - "127.0.0.1:21881:1883"
-      - "127.0.0.1:28081:18083"
+      - "127.0.0.1:${EMQX_MQTT_PORT1:-21881}:1883"
+      - "127.0.0.1:${EMQX_DASHBOARD_PORT1:-28081}:18083"
     volumes:
       - emqx1-data:/opt/emqx/data
 
@@ -46,8 +50,8 @@ services:
       cluster:
         aliases: [emqx2.emqx.local]
     ports:
-      - "127.0.0.1:21882:1883"
-      - "127.0.0.1:28082:18083"
+      - "127.0.0.1:${EMQX_MQTT_PORT2:-21882}:1883"
+      - "127.0.0.1:${EMQX_DASHBOARD_PORT2:-28082}:18083"
     volumes:
       - emqx2-data:/opt/emqx/data
 
@@ -61,8 +65,8 @@ services:
       cluster:
         aliases: [emqx3.emqx.local]
     ports:
-      - "127.0.0.1:21883:1883"
-      - "127.0.0.1:28083:18083"
+      - "127.0.0.1:${EMQX_MQTT_PORT3:-21883}:1883"
+      - "127.0.0.1:${EMQX_DASHBOARD_PORT3:-28083}:18083"
     volumes:
       - emqx3-data:/opt/emqx/data
 

@@ -23,6 +23,9 @@ ENV EMQX_REL_FORM='docker'
 
 WORKDIR /emqx/
 
+RUN if [ ! -f "/${PROFILE}.tar.gz" ]; then bash scripts/build-security-otp.sh; fi
+ENV PATH="/opt/emqx-otp/bin:${PATH}"
+
 RUN mkdir -p /emqx-rel/emqx && \
     if [ -f "/${PROFILE}.tar.gz" ]; then \
       tar zxf "/${PROFILE}.tar.gz" -C /emqx-rel/emqx; \
@@ -37,7 +40,9 @@ RUN mkdir -p /emqx-rel/emqx && \
       export EMQX_REL_PATH="/emqx/_build/${PROFILE}/rel/emqx" && \
       git config --global --add safe.directory '*' && \
       make ${PROFILE}-tgz && \
-      tar zxf _packages/${PROFILE}/*.tar.gz -C /emqx-rel/emqx; \
+      bash scripts/test/check-security-deps.sh && \
+      tar zxf _packages/${PROFILE}/*.tar.gz -C /emqx-rel/emqx && \
+      bash scripts/collect-security-licenses.sh /emqx-rel/emqx; \
     fi
 
 FROM $RUN_FROM

@@ -1,0 +1,24 @@
+"27" = erlang:system_info(otp_release),
+"15.2.7.14" = erlang:system_info(version),
+{ok, <<"27.3.4.19-emqx-oss.1\n">>} = file:read_file(
+    filename:join([code:root_dir(), "releases", "OTP_VERSION"])),
+mnesia_hook = mnesia_hook:module_info(module),
+{module, certifi} = code:ensure_loaded(certifi),
+Roots = certifi:cacerts(),
+140 = length(Roots),
+Fingerprints = [binary:encode_hex(crypto:hash(sha256, C)) || C <- Roots],
+false = lists:member(<<"86A1ECBA089C4A8D3BBE2734C612BA341D813E043CF9E8A862CD5C57A36BBE6B">>, Fingerprints),
+false = lists:member(<<"D7A7A0FB5D7E2731D771E9484EBCDEF71D5F0C3E0A2948782BC83EE0EA699EF4">>, Fingerprints),
+{'EXIT', {chunk_size_too_long, _}} = (catch cow_http_te:stream_chunked(<<"10000000000000000\r\n">>, {0, 0})),
+{'EXIT', {chunk_size_too_long, _}} = (catch cow_http_te:stream_chunked(<<"00000000000000000\r\n">>, {0, 0})),
+PacketSize = gen_rpc_helper:get_packet_size(),
+true = PacketSize > 0 andalso PacketSize =< 1073741824,
+RpcSockets = [S || S <- erlang:ports(),
+    case catch inet:sockname(S) of {ok, {_, 5369}} -> true; _ -> false end],
+true = RpcSockets =/= [],
+lists:foreach(fun(S) ->
+    {ok, [{packet, 4}, {packet_size, PacketSize}]} = inet:getopts(S, [packet, packet_size])
+end, RpcSockets),
+{module, emqx_plugins_proto_v4} = code:ensure_loaded(emqx_plugins_proto_v4),
+{error, not_allowed} = emqx_plugins:is_allowed_installation(<<"security-check-0.0.0">>, <<>>),
+io:format("SECURITY_OK OTP27 ERTS15.2.7.14 CA140 bounded_chunk RPC_limit=~p plugin_v4~n", [PacketSize]).

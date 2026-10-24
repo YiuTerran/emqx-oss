@@ -258,7 +258,7 @@ init(Req0, Opts) ->
     {ok, Req, Opts}.
 
 some_pem_path() ->
-    Dir = code:lib_dir(emqx_prometheus, test),
+    Dir = filename:join(code:lib_dir(emqx_prometheus), "test"),
     _Path = filename:join([Dir, "data", "cert.crt"]).
 
 assert_push_gateway_data(Data) ->

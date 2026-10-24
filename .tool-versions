@@ -1,2 +1,3 @@
-erlang 26.2.5.21
+# Erlang 27.3.4.19-emqx-oss.1 is built with scripts/build-security-otp.sh.
+# Activate its bin directory explicitly; stock OTP lacks the required Mnesia hooks.
 elixir 1.15.7-otp-26

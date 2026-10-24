@@ -141,6 +141,7 @@ defmodule EMQXUmbrella.MixProject do
       # what rebar3 chooses.
       # in conflict by gun and emqtt
       common_dep(:cowlib),
+      common_dep(:certifi),
       # in conflict by cowboy_swagger and cowboy
       common_dep(:ranch),
       # in conflict by grpc and eetcd
@@ -226,7 +227,20 @@ defmodule EMQXUmbrella.MixProject do
   # in conflict by emqx_connector and system_monitor
   def common_dep(:epgsql), do: {:epgsql, github: "emqx/epgsql", tag: "4.7.1.4", override: true}
   def common_dep(:sasl_auth), do: {:sasl_auth, "2.3.3", override: true}
-  def common_dep(:gen_rpc), do: {:gen_rpc, github: "emqx/gen_rpc", tag: "3.5.1", override: true}
+
+  def common_dep(:gen_rpc),
+    do:
+      {:gen_rpc,
+       github: "YiuTerran/gen-rpc-emqx-oss",
+       ref: "2fdf02844b87d656b2d7c707f73eb51b8384a9aa",
+       override: true}
+
+  def common_dep(:certifi),
+    do:
+      {:certifi,
+       github: "YiuTerran/certifi-emqx-oss",
+       ref: "4d9269f3260b80ac205b1722bd809fd9ea12f45e",
+       override: true}
 
   def common_dep(:system_monitor),
     do: {:system_monitor, github: "ieQu1/system_monitor", tag: "3.0.5"}
@@ -264,7 +278,9 @@ defmodule EMQXUmbrella.MixProject do
   def common_dep(:cowlib),
     do:
       {:cowlib,
-       github: "ninenines/cowlib", ref: "c6553f8308a2ca5dcd69d845f0a7d098c40c3363", override: true}
+       github: "YiuTerran/cowlib-emqx-oss",
+       ref: "21a12526490e00f38efcd7b8bb8576dda18e6562",
+       override: true}
 
   def common_dep(:snabbkaffe),
     do: {

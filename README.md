@@ -9,20 +9,22 @@
 - **社区版清理：**移除含 BSL 许可的应用目录、企业版构建入口和发布任务，构建与 CI 使用社区版配置。LDAP 认证随相关目录移除。
 - **QUIC 清理：**移除 quicer 依赖、MQTT over QUIC 监听器入口和相关构建配置。本 fork 不提供 MQTT over QUIC。
 - **Kafka：**提供 producer 连接器与动作，修复 bootstrap hosts 校验、headers 转换、producer 清理和指标统计，并包含自定义 Dashboard 的 Kafka 表单及连接器复制修复。
+- **安全维护：**使用保留 Mnesia hook 的 Apache-2.0 OTP `27.3.4.19-emqx-oss.1`，回移 cowlib、certifi 和插件安装修复，限制 RPC 包长，并限制 Dashboard Token 的发送范围。具体提交、许可证及验证方式见 [SECURITY-BACKPORTS.md](SECURITY-BACKPORTS.md)。
 
 ## 从源码构建
 
-本地开发使用官方 Erlang/OTP `26.2.5.21` 和 Elixir `1.15.7-otp-26`，版本声明在 `.tool-versions` 中。在本仓库根目录执行：
+发布构建使用本 fork 固定提交的定制 OTP `27.3.4.19-emqx-oss.1`，先校验源码 SHA-256 再编译。宿主机安装请使用独立目录，不覆盖系统 Erlang：
 
 ```bash
-mise install
+OTP_INSTALL_PREFIX="$PWD/.security-otp" bash scripts/build-security-otp.sh
+export PATH="$PWD/.security-otp/bin:$PATH"
 make emqx-rel
-EMQX_NODE__DB_BACKEND=mnesia _build/emqx/rel/emqx/bin/emqx console
+EMQX_NODE__DB_BACKEND=rlog _build/emqx/rel/emqx/bin/emqx console
 ```
 
-Docker/CI 构建镜像继续使用 EMQX 定制的 OTP `26.2.5.14-1`。该标签属于 `emqx/otp`，不在 mise 默认下载的 `erlang/otp` 仓库中，因此本地安装使用官方 OTP 26 补丁版本。项目构建检查支持 OTP 25/26，不要直接切换到更高主版本。
+Docker/CI 的 EMQX builder 中旧 OTP 只用于引导编译；实际编译 EMQX 和打入发布镜像的运行时均为上述安全 OTP。支持 OTP 25～27 的编译检查不意味着旧版本具有相同的安全修复。切换 OTP 主版本时请使用干净的构建目录，避免旧 BEAM、解析器和依赖缓存混入。
 
-官方 OTP 不包含 RLOG 所需的 `mnesia_hook` 扩展。上例显式指定 Mnesia，适合本地单节点开发；如果使用官方 OTP 请求 RLOG，启动脚本也会回退到 Mnesia，并将节点角色设为 `core`。验证 RLOG 时，请使用 EMQX builder 中的定制 OTP，并确认 `code:which(mnesia_hook)` 能找到该模块。升级官方 OTP 的补丁版本不会补上这个扩展，也不要移除启动脚本中的兼容性检查来强行启用 RLOG。
+官方 OTP 不包含 RLOG 所需的 `mnesia_hook` 扩展，mise 默认安装的官方 OTP 不能替代定制运行时。如果使用官方 OTP 请求 RLOG，启动脚本仍会安全回退到 Mnesia，不要删除此保护检查。新定制 OTP 已通过三节点 RLOG 和真实 MQTT 收发测试。商用分发须保留 Apache-2.0、第三方依赖许可证及修改说明。
 
 ## Docker 构建与发布
 
@@ -32,19 +34,19 @@ Docker/CI 构建镜像继续使用 EMQX 定制的 OTP `26.2.5.14-1`。该标签�
 EMQX_IMAGE_TAG=tryao/emqx-oss:local make emqx-docker
 ```
 
-镜像包含本仓库的社区版后端和 `YiuTerran/emqx-dashboard-oss` 发布的自定义 Dashboard。Dashboard 版本由 `Makefile` 的 `EMQX_DASHBOARD_VERSION` 固定，当前为 `v1.10.6`，包含 Kafka 入口和复制认证连接器时的密码处理修复。
+镜像包含本仓库的社区版后端和 `YiuTerran/emqx-dashboard-oss` 发布的自定义 Dashboard。Dashboard 版本由 `Makefile` 的 `EMQX_DASHBOARD_VERSION` 固定，包含 Kafka 入口、复制认证连接器时的密码处理、Token 范围限制和安全依赖更新。
 
-发布顺序为：先发布 Dashboard tag，等待其 zip asset 生成，再提交后端修改并推送后端版本 tag。后端 GitHub Actions 会校验源码 tag 与包版本，构建 amd64/arm64 镜像，将 staging 镜像推送到 Docker Hub，并在三节点 RLOG 集群验证通过后发布多架构版本 tag。带 `-` 的版本（例如 `v5.8.9-build.3`）不会移动 `latest`。Docker Hub 凭据和镜像名使用仓库 `deploy` 环境中的 `DOCKERHUB_USERNAME`、`DOCKERHUB_TOKEN` 和 `DOCKERHUB_IMAGE`。
+发布顺序为：先发布 Dashboard tag，等待其 zip asset 生成，再提交后端修改并推送后端版本 tag。后端 GitHub Actions 会校验源码 tag 与包版本，构建 amd64/arm64 镜像，将 staging 镜像推送到 Docker Hub，并在三节点 RLOG 集群验证通过后发布多架构版本 tag。带 `-` 的版本（例如 `v5.8.9-build.4`）不会移动 `latest`。Docker Hub 凭据和镜像名使用仓库 `deploy` 环境中的 `DOCKERHUB_USERNAME`、`DOCKERHUB_TOKEN` 和 `DOCKERHUB_IMAGE`。
 
 ## 本地三节点集群验证
 
 在仓库根目录运行，使用已发布的整体镜像：
 
 ```bash
-export EMQX_IMAGE=tryao/emqx-oss:5.8.9-build.3
+export EMQX_IMAGE=tryao/emqx-oss:5.8.9-build.4
 docker compose -p emqx-cluster-it -f deploy/docker/compose.cluster.yaml pull
 docker compose -p emqx-cluster-it -f deploy/docker/compose.cluster.yaml up -d --wait --wait-timeout 180
-python3 scripts/test/check-cluster.py --restart-node
+python3 scripts/test/check-cluster.py --restart-node --security-runtime
 ```
 
 Compose 使用三个 core 节点、RLOG、静态发现和各自的数据卷。节点使用 `emqx@emqx1.emqx.local` 等完整域名，并配置相应的 Docker 网络别名，以满足 Erlang 长节点名的要求。验证脚本要求三个节点均包含 `mnesia_hook` 且实际启用 RLOG，检查 Dashboard 的版本、Kafka bundle、登录和集群 API，完成所有节点对之间的 MQTT QoS 0/1/2 收发及保留消息检查，再停止第二个节点验证其余节点继续收发，最后启动该节点并检查重新入群和消息恢复。脚本只使用 Python 3.9+ 标准库。
@@ -67,7 +69,7 @@ docker compose -p emqx-cluster-it -f deploy/docker/compose.cluster.yaml down
 
 ## 宿主机编译依赖
 
-在 Debian/Ubuntu/Deepin 上，mise 从源码编译 OTP，需要 C/C++ 编译工具、Autoconf、ncurses 和 OpenSSL 开发库，可先安装：
+在 Debian/Ubuntu/Deepin 上，脚本从源码编译 OTP，需要 C/C++ 编译工具、Autoconf、ncurses 和 OpenSSL 开发库，可先安装：
 
 ```bash
 sudo apt-get install build-essential autoconf m4 libncurses-dev libssl-dev

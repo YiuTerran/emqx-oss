@@ -492,7 +492,7 @@ t_import_users_duplicated_records(_) ->
 %%------------------------------------------------------------------------------
 
 sample_filename(Name) ->
-    Dir = code:lib_dir(emqx_auth, test),
+    Dir = filename:join(code:lib_dir(emqx_auth), "test"),
     filename:join([Dir, <<"data">>, Name]).
 
 sample_filename_and_data(Name) ->

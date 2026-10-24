@@ -240,7 +240,7 @@ listener_mqtt_tcp_conf(Config) ->
     }.
 
 some_pem() ->
-    Dir = code:lib_dir(emqx_auth, test),
+    Dir = filename:join(code:lib_dir(emqx_auth), "test"),
     Path = filename:join([Dir, "data", "private_key.pem"]),
     {ok, Pem} = file:read_file(Path),
     Pem.

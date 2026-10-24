@@ -872,7 +872,7 @@ test_rsa_key(private) ->
     data_file("private_key.pem").
 
 data_file(Name) ->
-    Dir = code:lib_dir(emqx_auth, test),
+    Dir = filename:join(code:lib_dir(emqx_auth), "test"),
     list_to_binary(filename:join([Dir, "data", Name])).
 
 cert_file(Name) ->

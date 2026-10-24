@@ -160,7 +160,7 @@ stop_apps(Apps) ->
     lists:foreach(fun application:stop/1, Apps).
 
 cert_path(FileName) ->
-    Dir = code:lib_dir(emqx_auth, test),
+    Dir = filename:join(code:lib_dir(emqx_auth), "test"),
     filename:join([Dir, <<"data/certs">>, FileName]).
 
 cowboy_handler(Req0, State) ->

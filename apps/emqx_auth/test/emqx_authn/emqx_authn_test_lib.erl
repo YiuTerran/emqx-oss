@@ -60,7 +60,7 @@ delete_config(ID) ->
         ).
 
 client_ssl_cert_opts() ->
-    Dir = code:lib_dir(emqx_auth, test),
+    Dir = filename:join(code:lib_dir(emqx_auth), "test"),
     #{
         <<"keyfile">> => filename:join([Dir, <<"data/certs">>, <<"client.key">>]),
         <<"certfile">> => filename:join([Dir, <<"data/certs">>, <<"client.crt">>]),

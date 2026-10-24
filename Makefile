@@ -10,7 +10,7 @@ include env.sh
 
 # Dashboard version
 # from https://github.com/YiuTerran/emqx-dashboard-oss (fork of emqx/emqx-dashboard5)
-export EMQX_DASHBOARD_VERSION ?= v1.10.6
+export EMQX_DASHBOARD_VERSION ?= v1.10.9
 
 export EMQX_RELUP ?= true
 export EMQX_REL_FORM ?= tgz

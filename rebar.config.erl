@@ -16,7 +16,7 @@ do(Dir, CONFIG) ->
 
 assert_otp() ->
     Oldest = 25,
-    Latest = 26,
+    Latest = 27,
     OtpRelease = list_to_integer(erlang:system_info(otp_release)),
     case OtpRelease < Oldest orelse OtpRelease > Latest of
         true ->
@@ -45,7 +45,9 @@ deps(Config) ->
 
 overrides() ->
     [
-        {add, [{extra_src_dirs, [{"etc", [{recursive, true}]}]}]}
+        {add, [{extra_src_dirs, [{"etc", [{recursive, true}]}]}]},
+        %% OTP 27 retains format_status/2; legacy dependencies still implement it.
+        {add, system_monitor, [{erl_opts, [nowarn_deprecated_callback]}]}
     ] ++ snabbkaffe_overrides().
 
 %% Temporary workaround for a rebar3 erl_opts duplication
@@ -145,6 +147,10 @@ common_compile_opts(_Edition, _RelType, Vsn) ->
     % always include debug_info
     [
         debug_info,
+        %% Keep format_status/2 for OTP 25 compatibility alongside format_status/1.
+        nowarn_deprecated_callback,
+        %% Logging macros intentionally augment caller-supplied literal maps.
+        nowarn_update_literal,
         {compile_info, [{emqx_vsn, Vsn} || Vsn /= undefined]}
     ] ++
         [{d, 'EMQX_BENCHMARK'} || os:getenv("EMQX_BENCHMARK") =:= "1"] ++
@@ -364,6 +370,10 @@ relx_overlay(ReleaseType, Edition) ->
         {mkdir, "data/configs"},
         {mkdir, "data/patches"},
         {mkdir, "data/scripts"},
+        {copy,
+            filename:join([
+                code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"
+            ]), "releases/OTP_VERSION"},
         {template, "rel/emqx_vars", "releases/emqx_vars"},
         {template, "rel/BUILD_INFO", "releases/{{release_version}}/BUILD_INFO"},
         {copy, "bin/emqx", "bin/emqx"},

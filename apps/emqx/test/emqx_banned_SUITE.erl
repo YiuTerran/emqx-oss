@@ -348,7 +348,7 @@ receive_messages(Count, Msgs) ->
     end.
 
 mk_bootstrap_file(File) ->
-    Dir = code:lib_dir(emqx, test),
+    Dir = filename:join(code:lib_dir(emqx), "test"),
     filename:join([Dir, <<"data/banned">>, File]).
 
 to_local(DateTimeBin) ->

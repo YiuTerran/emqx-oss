@@ -552,7 +552,7 @@ list_pem_dir(Type, Name) ->
     file:list_dir(Dir).
 
 data_file(Name) ->
-    Dir = code:lib_dir(emqx, test),
+    Dir = filename:join(code:lib_dir(emqx), "test"),
     {ok, Bin} = file:read_file(filename:join([Dir, "data", Name])),
     Bin.
 

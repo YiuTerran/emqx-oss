@@ -244,7 +244,7 @@ t_create_with_bad_name_root(_Config) ->
     ok.
 
 data_file(Name) ->
-    Dir = code:lib_dir(emqx_bridge, test),
+    Dir = filename:join(code:lib_dir(emqx_bridge), "test"),
     {ok, Bin} = file:read_file(filename:join([Dir, "data", Name])),
     Bin.
 

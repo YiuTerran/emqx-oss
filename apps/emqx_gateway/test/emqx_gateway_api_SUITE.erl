@@ -376,7 +376,7 @@ t_authn_data_mgmt(_) ->
         ["gateways", "stomp", "authentication", "import_users"]
     ),
 
-    Dir = code:lib_dir(emqx_auth, test),
+    Dir = filename:join(code:lib_dir(emqx_auth), "test"),
     JSONFileName = filename:join([Dir, <<"data/user-credentials.json">>]),
     {ok, JSONData} = file:read_file(JSONFileName),
     {ok, 200, ImportedResults} = emqx_dashboard_api_test_helpers:multipart_formdata_request(
@@ -593,7 +593,7 @@ t_listeners_authn_data_mgmt(_) ->
         ["gateways", "stomp", "listeners", "stomp:tcp:def", "authentication", "import_users"]
     ),
 
-    Dir = code:lib_dir(emqx_auth, test),
+    Dir = filename:join(code:lib_dir(emqx_auth), "test"),
     JSONFileName = filename:join([Dir, <<"data/user-credentials.json">>]),
     {ok, JSONData} = file:read_file(JSONFileName),
     {ok, 200, ImportedResults} = emqx_dashboard_api_test_helpers:multipart_formdata_request(

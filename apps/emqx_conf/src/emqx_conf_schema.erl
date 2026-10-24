@@ -894,6 +894,16 @@ fields("rpc") ->
                     desc => ?DESC(rpc_socket_recbuf)
                 }
             )},
+        {"socket_packet_size",
+            sc(
+                range(1, 1073741824),
+                #{
+                    mapping => "gen_rpc.socket_packet_size",
+                    default => 536870912,
+                    desc =>
+                        "Maximum incoming RPC frame size in bytes. Use the same value on all nodes."
+                }
+            )},
         {"socket_buffer",
             sc(
                 emqx_schema:bytesize(),

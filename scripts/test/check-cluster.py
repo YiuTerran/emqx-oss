@@ -17,8 +17,8 @@ from urllib.request import Request, urlopen
 ROOT = Path(__file__).resolve().parents[2]
 COMPOSE_FILE = ROOT / "deploy/docker/compose.cluster.yaml"
 NODES = ("emqx1", "emqx2", "emqx3")
-MQTT_PORTS = (21881, 21882, 21883)
-DASHBOARD_PORTS = (28081, 28082, 28083)
+MQTT_PORTS = tuple(int(os.environ.get(f"EMQX_MQTT_PORT{i}", 21880 + i)) for i in range(1, 4))
+DASHBOARD_PORTS = tuple(int(os.environ.get(f"EMQX_DASHBOARD_PORT{i}", 28080 + i)) for i in range(1, 4))
 
 
 def compose(project, *args, timeout=60):
@@ -70,6 +70,15 @@ def api(port, path, data=None, token=None):
     )
     with urlopen(request, timeout=15) as response:
         return response.read()
+
+
+def check_security_runtime(project):
+    expression = (ROOT / "scripts/test/security-runtime.eval").read_text().strip()
+    for node in NODES:
+        output = compose(project, "exec", "-T", node, "emqx", "eval", expression)
+        if "SECURITY_OK" not in output:
+            raise RuntimeError(f"{node}: security runtime check failed: {output}")
+    print("PASS all three nodes: security OTP, CA roots, chunk parser, RPC limit, plugin API", flush=True)
 
 
 def check_dashboard():
@@ -221,8 +230,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", default="emqx-cluster-it")
     parser.add_argument("--restart-node", action="store_true", help="restart emqx2 and repeat checks")
+    parser.add_argument("--security-runtime", action="store_true", help="verify security patches on all nodes")
     args = parser.parse_args()
     wait_for_cluster(args.project)
+    if args.security_runtime:
+        check_security_runtime(args.project)
     check_dashboard()
     prefix = "cluster-it/" + uuid.uuid4().hex
     retained_topic = prefix + "/retained"
@@ -240,6 +252,8 @@ def main():
             finally:
                 compose(args.project, "start", "emqx2")
             wait_for_cluster(args.project)
+            if args.security_runtime:
+                check_security_runtime(args.project)
             check_dashboard()
             check_messages(prefix + "/after")
             check_retained(retained_topic, payload)

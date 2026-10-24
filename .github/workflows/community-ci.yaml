@@ -25,12 +25,24 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Verify source licenses
         run: test -z "$(find apps -name BSL.txt -print -quit)"
+      - name: Build pinned Apache-2.0 security OTP
+        run: |
+          bash scripts/build-security-otp.sh
+          echo /opt/emqx-otp/bin >> "$GITHUB_PATH"
       - name: Compile community edition and tests
         run: make emqx-compile test-compile
+      - name: Verify compiled security dependencies
+        run: bash scripts/test/check-security-deps.sh
       - name: Run session registry regression tests
         run: ./rebar3 ct --name test@127.0.0.1 --suite apps/emqx/test/emqx_cm_registry_keeper_SUITE.erl
       - name: Run esockd file limit regression test
-        run: ./rebar3 ct --name test@127.0.0.1 --suite apps/emqx/test/emqx_esockd_limit_SUITE.erl
+        run: |
+          ulimit -n 8192
+          ./rebar3 ct --name test@127.0.0.1 --suite apps/emqx/test/emqx_esockd_limit_SUITE.erl
+      - name: Run plugin installation security regressions
+        run: |
+          erl -pa _build/test/lib/*/ebin -noshell -eval 'case eunit:test(emqx_plugins, [verbose]) of ok -> halt(0); _ -> halt(1) end.'
+          ./rebar3 ct --name test@127.0.0.1 --suite apps/emqx_plugins/test/emqx_plugins_SUITE.erl --case t_allow_ttl_expires,t_allow_sha256_match,t_allow_sha256_mismatch,t_allow_sha256_undefined_accepts_any,t_tar_path_traversal
       - name: Run TCP listener tests
         run: ./rebar3 ct --name test@127.0.0.1 --suite apps/emqx/test/emqx_listeners_SUITE.erl --case t_max_conns_tcp,t_current_conns_tcp
       - name: Run community boot tests

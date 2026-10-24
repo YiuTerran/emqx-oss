@@ -327,7 +327,7 @@ test_authenticator_import_users(PathPrefix) ->
         {filenam, "user-credentials.json", <<>>}
     ]),
 
-    Dir = code:lib_dir(emqx_auth, test),
+    Dir = filename:join(code:lib_dir(emqx_auth), "test"),
     JSONFileName = filename:join([Dir, <<"data/user-credentials.json">>]),
     CSVFileName = filename:join([Dir, <<"data/user-credentials.csv">>]),
 
