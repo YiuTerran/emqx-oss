@@ -1,4 +1,4 @@
-ARG BUILD_FROM=ghcr.io/emqx/emqx-builder/5.6-2:1.15.7-26.2.5.14-1-debian13
+ARG BUILD_FROM=docker.io/tryao/emqx-otp-oss:27.3.4.19-emqx-oss.1-1-debian13@sha256:f80234a9682efa39091c2b8a868a8acdc54989e162be8193f61c3db07eb1448c
 ARG RUN_FROM=debian:13-slim
 ARG SOURCE_TYPE=src # tgz
 
@@ -23,7 +23,7 @@ ENV EMQX_REL_FORM='docker'
 
 WORKDIR /emqx/
 
-RUN if [ ! -f "/${PROFILE}.tar.gz" ]; then bash scripts/build-security-otp.sh; fi
+RUN if [ ! -f "/${PROFILE}.tar.gz" ]; then check-emqx-otp; fi
 ENV PATH="/opt/emqx-otp/bin:${PATH}"
 
 RUN mkdir -p /emqx-rel/emqx && \

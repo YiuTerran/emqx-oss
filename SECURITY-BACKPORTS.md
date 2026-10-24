@@ -17,11 +17,15 @@ This includes the fixes for CVE-2026-55953, CVE-2026-89422,
 CVE-2026-58227, CVE-2026-42789 and CVE-2026-75538. The source, its
 modification record and Apache-2.0 license are public in that fork.
 
-The existing EMQX builder image is only a bootstrap environment. Docker source
-builds and Community CI compile the pinned security OTP before EMQX, with the
-new runtime first in PATH. Releases must embed that runtime. `env.sh` declares
-the target runtime separately from the bootstrap image. Do not mistake the
-bootstrap image's OTP version for the final runtime.
+Docker source builds and Community CI use the independently built
+`tryao/emqx-otp-oss:27.3.4.19-emqx-oss.1-1-debian13` environment, pinned to
+multi-architecture digest
+`sha256:f80234a9682efa39091c2b8a868a8acdc54989e162be8193f61c3db07eb1448c`.
+It is built from Debian 13 and contains no older bootstrap OTP or Elixir.
+Its native amd64/arm64 CI validates OTP/ERTS, the Mnesia hook, SSL and compiler
+before publishing. Both EMQX build paths verify the installed runtime before
+compilation rather than rebuilding OTP on every run. Releases embed this
+runtime; the source-build script remains available for independent host builds.
 
 For a host build, use a dedicated writable prefix, then explicitly activate it:
 

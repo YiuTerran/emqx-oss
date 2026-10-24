@@ -1,9 +1,8 @@
-# https://github.com/emqx/emqx-builder
-export EMQX_BUILDER_VSN=5.6-2
+# https://github.com/YiuTerran/otp-emqx-oss
+export EMQX_BUILDER_VSN=27.3.4.19-emqx-oss.1-1-debian13
 export OTP_VSN=27.3.4.19-emqx-oss.1
-export ELIXIR_VSN=1.15.7
-# Bootstrap compiler only: CI/Docker installs the pinned security OTP before building.
-export EMQX_BUILDER=ghcr.io/emqx/emqx-builder/${EMQX_BUILDER_VSN}:${ELIXIR_VSN}-26.2.5.14-1-ubuntu22.04
-export EMQX_DOCKER_BUILD_FROM=ghcr.io/emqx/emqx-builder/${EMQX_BUILDER_VSN}:${ELIXIR_VSN}-26.2.5.14-1-debian13
+# Verified multi-architecture builder; no old OTP or Elixir is bundled.
+export EMQX_BUILDER=docker.io/tryao/emqx-otp-oss:${EMQX_BUILDER_VSN}@sha256:f80234a9682efa39091c2b8a868a8acdc54989e162be8193f61c3db07eb1448c
+export EMQX_DOCKER_BUILD_FROM=${EMQX_BUILDER}
 export EMQX_DOCKER_RUN_FROM=debian:13-slim
 export BUILD_WITHOUT_QUIC=1

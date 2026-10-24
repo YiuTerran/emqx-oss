@@ -22,7 +22,7 @@ make emqx-rel
 EMQX_NODE__DB_BACKEND=rlog _build/emqx/rel/emqx/bin/emqx console
 ```
 
-Docker/CI 的 EMQX builder 中旧 OTP 只用于引导编译；实际编译 EMQX 和打入发布镜像的运行时均为上述安全 OTP。支持 OTP 25～27 的编译检查不意味着旧版本具有相同的安全修复。切换 OTP 主版本时请使用干净的构建目录，避免旧 BEAM、解析器和依赖缓存混入。
+Docker/CI 使用本 fork 发布的 `tryao/emqx-otp-oss:27.3.4.19-emqx-oss.1-1-debian13` 基础镜像，按多架构 digest 固定；镜像只有上述安全 OTP，不再携带旧 OTP 26，也不再为每次 EMQX 构建重复编译 OTP。支持 OTP 25～27 的编译检查不意味着旧版本具有相同的安全修复。切换 OTP 主版本时请使用干净的构建目录，避免旧 BEAM、解析器和依赖缓存混入。
 
 官方 OTP 不包含 RLOG 所需的 `mnesia_hook` 扩展，mise 默认安装的官方 OTP 不能替代定制运行时。如果使用官方 OTP 请求 RLOG，启动脚本仍会安全回退到 Mnesia，不要删除此保护检查。新定制 OTP 已通过三节点 RLOG 和真实 MQTT 收发测试。商用分发须保留 Apache-2.0、第三方依赖许可证及修改说明。
 

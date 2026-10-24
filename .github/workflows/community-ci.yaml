@@ -11,7 +11,7 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-22.04
-    container: ghcr.io/emqx/emqx-builder/5.6-2:1.15.7-26.2.5.14-1-ubuntu22.04
+    container: docker.io/tryao/emqx-otp-oss:27.3.4.19-emqx-oss.1-1-debian13@sha256:f80234a9682efa39091c2b8a868a8acdc54989e162be8193f61c3db07eb1448c
     env:
       PROFILE: emqx
       BUILD_WITHOUT_QUIC: "1"
@@ -25,10 +25,8 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Verify source licenses
         run: test -z "$(find apps -name BSL.txt -print -quit)"
-      - name: Build pinned Apache-2.0 security OTP
-        run: |
-          bash scripts/build-security-otp.sh
-          echo /opt/emqx-otp/bin >> "$GITHUB_PATH"
+      - name: Verify pinned Apache-2.0 security OTP builder
+        run: check-emqx-otp
       - name: Compile community edition and tests
         run: make emqx-compile test-compile
       - name: Verify compiled security dependencies

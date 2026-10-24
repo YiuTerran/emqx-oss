@@ -299,10 +299,13 @@ make_docker() {
     source ./env.sh
     local BUILD_FROM="${BUILD_FROM:-${EMQX_DOCKER_BUILD_FROM}}"
     # shellcheck disable=SC2155
-    local BOOTSTRAP_OTP_VSN="$(docker run --rm "${BUILD_FROM}" erl -eval '{ok, Version} = file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"])), io:fwrite(Version), halt().' -noshell)"
-    echo "Bootstrap OTP: ${BOOTSTRAP_OTP_VSN}; target security OTP: ${OTP_VSN}"
-    # shellcheck disable=SC2155
-    local ELIXIR_VSN="$(docker run --rm "${BUILD_FROM}" elixir --short-version)"
+    local BUILDER_OTP_VSN="$(docker run --rm "${BUILD_FROM}" erl +S 2:2 -eval '{ok, Version} = file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"])), io:fwrite(Version), halt().' -noshell)"
+    test "${BUILDER_OTP_VSN}" = "${OTP_VSN}"
+    echo "Verified builder OTP: ${BUILDER_OTP_VSN}"
+    local ELIXIR_VSN=''
+    if [[ "$PROFILE" = *-elixir ]]; then
+        ELIXIR_VSN="$(docker run --rm "${BUILD_FROM}" elixir --short-version)"
+    fi
     local RUN_FROM="${RUN_FROM:-${EMQX_DOCKER_RUN_FROM}}"
     local EMQX_DOCKERFILE="${EMQX_DOCKERFILE:-deploy/docker/Dockerfile}"
     local EMQX_SOURCE_TYPE="${EMQX_SOURCE_TYPE:-src}"
