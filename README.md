@@ -11,11 +11,20 @@
 
 ## 从源码构建
 
-使用 Erlang/OTP 26，在本仓库根目录执行：
+本地开发使用官方 Erlang/OTP `26.2.5.21` 和 Elixir `1.15.7-otp-26`，版本声明在 `.tool-versions` 中。在本仓库根目录执行：
 
 ```bash
+mise install
 make emqx-rel
 _build/emqx/rel/emqx/bin/emqx console
+```
+
+Docker/CI 构建镜像继续使用 EMQX 定制的 OTP `26.2.5.14-1`。该标签属于 `emqx/otp`，不在 mise 默认下载的 `erlang/otp` 仓库中，因此本地安装使用官方 OTP 26 补丁版本。项目构建检查支持 OTP 25/26，不要直接切换到更高主版本。
+
+在 Debian/Ubuntu/Deepin 上，mise 从源码编译 OTP，需要 C/C++ 编译工具、Autoconf、ncurses 和 OpenSSL 开发库，可先安装：
+
+```bash
+sudo apt-get install build-essential autoconf m4 libncurses-dev libssl-dev
 ```
 
 在 macOS 上，旧版捆绑 Snappy 的测试代码可能无法通过新版 Apple Clang 编译。可安装 Homebrew 的 Snappy/LZ4，并让 RocksDB 使用这两个库：
@@ -23,10 +32,10 @@ _build/emqx/rel/emqx/bin/emqx console
 ```bash
 brew install snappy lz4
 ERLANG_ROCKSDB_OPTS="-DWITH_SNAPPY=ON -DWITH_LZ4=ON -DCMAKE_PREFIX_PATH=$(brew --prefix)" \
-  BUILD_WITHOUT_JQ=1 mise exec erlang@26.2.5.21 -- make emqx-rel
+  BUILD_WITHOUT_JQ=1 make emqx-rel
 ```
 
-仓库的 `.tool-versions` 固定 OTP `26.2.5.14-1`；上例使用已在本机安装的 `26.2.5.21`。`BUILD_WITHOUT_JQ=1` 仅跳过 JQ 原生依赖，**不会跳过 RocksDB**。按上例生成的 macOS RocksDB NIF 动态链接 Homebrew 的 Snappy/LZ4，复制构建结果到其他机器时需确保目标机器也有这些库。
+上例使用 `.tool-versions` 声明的 OTP 版本，请先执行 `mise install`。`BUILD_WITHOUT_JQ=1` 仅跳过 JQ 原生依赖，**不会跳过 RocksDB**。按上例生成的 macOS RocksDB NIF 动态链接 Homebrew 的 Snappy/LZ4，复制构建结果到其他机器时需确保目标机器也有这些库。
 
 ## 项目文档
 
