@@ -36,14 +36,14 @@ EMQX_IMAGE_TAG=tryao/emqx-oss:local make emqx-docker
 
 镜像包含本仓库的社区版后端和 `YiuTerran/emqx-dashboard-oss` 发布的自定义 Dashboard。Dashboard 版本由 `Makefile` 的 `EMQX_DASHBOARD_VERSION` 固定，包含 Kafka 入口、复制认证连接器时的密码处理、Token 范围限制和安全依赖更新。
 
-发布顺序为：先发布 Dashboard tag，等待其 zip asset 生成，再提交后端修改并推送后端版本 tag。后端 GitHub Actions 会校验源码 tag 与包版本，构建 amd64/arm64 镜像，将 staging 镜像推送到 Docker Hub，并在三节点 RLOG 集群验证通过后发布多架构版本 tag。带 `-` 的版本（例如 `v5.8.9-build.5`）不会移动 `latest`。Docker Hub 凭据和镜像名使用仓库 `deploy` 环境中的 `DOCKERHUB_USERNAME`、`DOCKERHUB_TOKEN` 和 `DOCKERHUB_IMAGE`。
+发布顺序为：先发布 Dashboard tag，等待其 zip asset 生成，再提交后端修改并推送后端版本 tag。后端 GitHub Actions 会校验源码 tag 与包版本，构建 amd64/arm64 镜像，将 staging 镜像推送到 Docker Hub，并在三节点 RLOG 集群验证通过后发布多架构版本 tag。带 `-` 的版本（例如 `v5.8.9-build.6`）不会移动 `latest`。Docker Hub 凭据和镜像名使用仓库 `deploy` 环境中的 `DOCKERHUB_USERNAME`、`DOCKERHUB_TOKEN` 和 `DOCKERHUB_IMAGE`。
 
 ## 本地三节点集群验证
 
 在仓库根目录运行，使用已发布的整体镜像：
 
 ```bash
-export EMQX_IMAGE=tryao/emqx-oss:5.8.9-build.5
+export EMQX_IMAGE=tryao/emqx-oss:5.8.9-build.6
 docker compose -p emqx-cluster-it -f deploy/docker/compose.cluster.yaml pull
 docker compose -p emqx-cluster-it -f deploy/docker/compose.cluster.yaml up -d --wait --wait-timeout 180
 python3 scripts/test/check-cluster.py --restart-node --security-runtime
@@ -83,7 +83,7 @@ ERLANG_ROCKSDB_OPTS="-DWITH_SNAPPY=ON -DWITH_LZ4=ON -DCMAKE_PREFIX_PATH=$(brew -
   BUILD_WITHOUT_JQ=1 make emqx-rel
 ```
 
-上例使用 `.tool-versions` 声明的 OTP 版本，请先执行 `mise install`。`BUILD_WITHOUT_JQ=1` 仅跳过 JQ 原生依赖，**不会跳过 RocksDB**。按上例生成的 macOS RocksDB NIF 动态链接 Homebrew 的 Snappy/LZ4，复制构建结果到其他机器时需确保目标机器也有这些库。
+上例同样需要先按“从源码构建”一节安装并激活定制 OTP；`.tool-versions` 不声明官方 Erlang，`mise install` 不能代替这一步。`BUILD_WITHOUT_JQ=1` 仅跳过 JQ 原生依赖，**不会跳过 RocksDB**。按上例生成的 macOS RocksDB NIF 动态链接 Homebrew 的 Snappy/LZ4，复制构建结果到其他机器时需确保目标机器也有这些库。
 
 ## 项目文档
 

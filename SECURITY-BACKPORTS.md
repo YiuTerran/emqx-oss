@@ -27,6 +27,13 @@ before publishing. Both EMQX build paths verify the installed runtime before
 compilation rather than rebuilding OTP on every run. Releases embed this
 runtime; the source-build script remains available for independent host builds.
 
+The rebar plugin dependency tree is resolved separately from application deps.
+`emqx_plugrel` therefore pins HOCON 0.44.0 there too, avoiding the old parser's
+OTP 27 reserved-word errors. PropEr's own coverage plugin is disabled in both
+of rebar's plugin keys. Swallowed plugin failures can leave parallel compiler
+workers behind with stale options; Community CI rejects such failures rather
+than treating a later unrelated dependency error as the root cause.
+
 For a host build, use a dedicated writable prefix, then explicitly activate it:
 
 ```sh
@@ -141,3 +148,9 @@ amd64 and arm64 images' three-node tests on native runners. A complete
 image SBOM/vulnerability scan and
 the Hackney CVE-2025-3864 / JOSE CVE-2023-50966 call-path triage remain
 outside these verified fixes. Do not describe this release as vulnerability-free.
+
+The digest-pinned standalone OTP builder also passed a clean Community CI run
+after the plugin-tree fixes: [40112520864](https://github.com/YiuTerran/emqx-oss/actions/runs/40112520864).
+It completed production/test compilation, the regressions listed above, release
+assembly and 1025 simultaneous MQTT client connections without plugin-loading
+errors. This is distinct from the multi-architecture Docker release gate.
