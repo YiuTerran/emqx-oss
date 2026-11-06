@@ -68,5 +68,27 @@ jobs:
           ulimit -n 8192
           release_bin=_build/emqx/rel/emqx/bin/emqx
           "$release_bin" start
-          trap '"$release_bin" stop' EXIT
+          cleanup() {
+            result=$?
+            if [ "$result" -ne 0 ]; then
+              find _build/emqx/rel/emqx/log -type f -name '*.log*' -exec tail -n 100 {} \; || true
+            fi
+            "$release_bin" stop || true
+            exit "$result"
+          }
+          trap cleanup EXIT
+          # `emqx start` only waits for the core process. Authentication briefly
+          # denies clients while the remaining applications initialize.
+          ready=false
+          for attempt in $(seq 1 60); do
+            if "$release_bin" eval 'lists:keymember(emqx_machine, 1, application:which_applications()) andalso maps:get(init_done, sys:get_state(emqx_authn_chains), false).' | grep -qx true; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then
+            echo "EMQX release authentication did not become ready" >&2
+            exit 1
+          fi
           python3 scripts/test/check-connection-capacity.py
