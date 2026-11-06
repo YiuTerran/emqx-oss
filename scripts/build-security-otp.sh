@@ -2,8 +2,8 @@
 set -euo pipefail
 
 VERSION=27.3.4.19-emqx-oss.1
-COMMIT=4559432c17edb53302903b3603132513b81f58f6
-SHA256=8f76576e30b1a55508e6c0c91e765aa8067101b184aed28c1f9cde6504a43ae9
+COMMIT=aabbcee3c5bc857ee6347dc80794f2427d6666c5
+SHA256=9fd464c21b14ae63a3235875d61055dc965a4541aa96baffa2e56768bddc7a00
 PREFIX="${OTP_INSTALL_PREFIX:-/opt/emqx-otp}"
 if [ -x "$PREFIX/bin/erl" ] &&
     [ "$(cat "$PREFIX/lib/erlang/releases/27/OTP_VERSION")" = "$VERSION" ]; then
