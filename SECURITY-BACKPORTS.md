@@ -8,8 +8,8 @@ Upstream names identify provenance, not endorsement or trademark permission.
 
 `scripts/build-security-otp.sh` builds `27.3.4.19-emqx-oss.1` from
 `YiuTerran/otp-emqx-oss`, commit
-`4559432c17edb53302903b3603132513b81f58f6`. Its source archive SHA-256 is
-`8f76576e30b1a55508e6c0c91e765aa8067101b184aed28c1f9cde6504a43ae9`.
+`aabbcee3c5bc857ee6347dc80794f2427d6666c5`. Its source archive SHA-256 is
+`9fd464c21b14ae63a3235875d61055dc965a4541aa96baffa2e56768bddc7a00`.
 The fork merges official OTP 27.3.4.19 onto EMQX OTP 27.3.4.2-9 and preserves
 Mnesia hooks, MQTT packet mode and EMQX TLS extensions.
 
@@ -18,9 +18,15 @@ CVE-2026-58227, CVE-2026-42789 and CVE-2026-75538. The source, its
 modification record and Apache-2.0 license are public in that fork.
 
 Docker source builds and Community CI use the independently built
-`tryao/emqx-otp-oss:27.3.4.19-emqx-oss.1-1-debian13` environment, pinned to
+`tryao/emqx-otp-oss:27.3.4.19-emqx-oss.1-2-debian13` environment, pinned to
 multi-architecture digest
-`sha256:f80234a9682efa39091c2b8a868a8acdc54989e162be8193f61c3db07eb1448c`.
+`sha256:b6e56a84e4b3c55ddbc726a11c77f2696dd8b098dba7db9c8a5f3dfdd1d7cf39`.
+Packaging revision 2 is built from the source commit above, including the
+OTP 27 CI compatibility, Windows resource-version and SSL/DTLS test fixes.
+The [publication run](https://github.com/YiuTerran/otp-emqx-oss/actions/runs/42191080903)
+passed native amd64 and arm64 runtime checks before publishing this index.
+The OTP runtime version remains `27.3.4.19-emqx-oss.1`; the `-2` is the
+image packaging revision, not a different OTP runtime version.
 It is built from Debian 13 and contains no older bootstrap OTP or Elixir.
 Its native amd64/arm64 CI validates OTP/ERTS, the Mnesia hook, SSL and compiler
 before publishing. Both EMQX build paths verify the installed runtime before

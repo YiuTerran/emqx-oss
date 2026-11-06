@@ -1,4 +1,4 @@
-ARG BUILD_FROM=docker.io/tryao/emqx-otp-oss:27.3.4.19-emqx-oss.1-1-debian13@sha256:f80234a9682efa39091c2b8a868a8acdc54989e162be8193f61c3db07eb1448c
+ARG BUILD_FROM=docker.io/tryao/emqx-otp-oss:27.3.4.19-emqx-oss.1-2-debian13@sha256:b6e56a84e4b3c55ddbc726a11c77f2696dd8b098dba7db9c8a5f3dfdd1d7cf39
 ARG RUN_FROM=debian:13-slim
 ARG SOURCE_TYPE=src # tgz
 
