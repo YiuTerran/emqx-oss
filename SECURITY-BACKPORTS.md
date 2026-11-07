@@ -8,8 +8,8 @@ Upstream names identify provenance, not endorsement or trademark permission.
 
 `scripts/build-security-otp.sh` builds `27.3.4.19-emqx-oss.1` from
 `YiuTerran/otp-emqx-oss`, commit
-`aabbcee3c5bc857ee6347dc80794f2427d6666c5`. Its source archive SHA-256 is
-`9fd464c21b14ae63a3235875d61055dc965a4541aa96baffa2e56768bddc7a00`.
+`34ea4ff04f78310394d14707e42fd5b1b9527b62`. Its source archive SHA-256 is
+`c85c85e497e4709eed40194f3bd007ec79292b2badcb1a76aeb4ff071f9d7ad7`.
 The fork merges official OTP 27.3.4.19 onto EMQX OTP 27.3.4.2-9 and preserves
 Mnesia hooks, MQTT packet mode and EMQX TLS extensions.
 
@@ -18,14 +18,15 @@ CVE-2026-58227, CVE-2026-42789 and CVE-2026-75538. The source, its
 modification record and Apache-2.0 license are public in that fork.
 
 Docker source builds and Community CI use the independently built
-`tryao/emqx-otp-oss:27.3.4.19-emqx-oss.1-2-debian13` environment, pinned to
+`tryao/emqx-otp-oss:27.3.4.19-emqx-oss.1-3-debian13` environment, pinned to
 multi-architecture digest
-`sha256:b6e56a84e4b3c55ddbc726a11c77f2696dd8b098dba7db9c8a5f3dfdd1d7cf39`.
-Packaging revision 2 is built from the source commit above, including the
-OTP 27 CI compatibility, Windows resource-version and SSL/DTLS test fixes.
-The [publication run](https://github.com/YiuTerran/otp-emqx-oss/actions/runs/42191080903)
+`sha256:5279e7803ce75a49681e5bbc46d6efee81492a369aa12e1b23557361853caf56`.
+Packaging revision 3 is built from the source commit above, adding compatible
+i386 CI runners and deterministic tprof/logger tests to revision 2. These
+changes do not alter the OTP runtime source or version.
+The [publication run](https://github.com/YiuTerran/otp-emqx-oss/actions/runs/42372751392)
 passed native amd64 and arm64 runtime checks before publishing this index.
-The OTP runtime version remains `27.3.4.19-emqx-oss.1`; the `-2` is the
+The OTP runtime version remains `27.3.4.19-emqx-oss.1`; the `-3` is the
 image packaging revision, not a different OTP runtime version.
 It is built from Debian 13 and contains no older bootstrap OTP or Elixir.
 Its native amd64/arm64 CI validates OTP/ERTS, the Mnesia hook, SSL and compiler
